@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Gowin synthesis / place-and-route outputs
+*_pnr.json
+*.fs
+*.json
+
+# Simulation outputs
+*.vcd
+*.o
