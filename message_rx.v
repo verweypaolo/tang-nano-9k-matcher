@@ -2,12 +2,16 @@
 
 module message_rx 
 #(
-    parameter SENTINEL = 8'hAA // sentinel byte
+    parameter SENTINEL = 8'hAA, // sentinel byte
+    parameter BAUD_DIVISOR = 234
 )
 (
     input clk,
     input uart_rx
 );
+
+// must be confortable longer than minimum delay (BAUD_DIVISOR * 11)
+localparam TIMEOUT_CYCLES = BAUD_DIVISOR * 11 * 20; // large number of cycles to account for transmission delay (serial jitter)
 
 // instantiate these to connect the uart_rx outputs through
 wire byteReady;
@@ -15,7 +19,9 @@ wire uartFrameError;
 wire parityError;
 wire [7:0] dataIn;
 
-uart_rx uart (
+uart_rx #(
+    .BAUD_DIVISOR(BAUD_DIVISOR)
+) uart (
     .clk(clk),
     .uart_rx(uart_rx),
     .byteReady(byteReady),
