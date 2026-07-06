@@ -32,10 +32,13 @@ uart_rx #(
 
 reg [3:0] msgState; // track state
 reg [7:0] checksumAcc; // accumulate XOR of every received byte, check checksum at the end
+reg [$clog2(TIMEOUT_CYCLES):0] byteWaitCounter;
 reg sentinelError; // assert if erroneous sentinel received
 reg timeOutError; // assert if more than N cycles before receiving a byte
 reg byteReadyPrev; // for edge construction
 wire byteReadyEdge = byteReady & ~byteReadyPrev; // edge
+
+reg [7:0] msgType; // store message type
 
 localparam MSG_STATE_IDLE = 0;
 localparam MSG_STATE_SENTINEL  = 1; // validate sentinel byte
@@ -49,9 +52,11 @@ localparam MSG_STATE_CHECKSUM  = 7; // capture + verify checksum byte
 initial begin
     msgState = 0;
     checksumAcc = 0;
+    byteWaitCounter = 0;
     sentinelError = 0;
     timeOutError = 0;
     byteReadyPrev = 0;
+    msgType = 0;
 end
 
 always @(posedge clk) begin
@@ -60,7 +65,7 @@ end
 
 always @(posedge clk) begin
     case (msgState)
-        MSG_STATE_IDLE: begin // not sure if this state is necessary, might combine with sentinel state later
+        MSG_STATE_IDLE: begin
             if (byteReadyEdge) begin
                 checksumAcc <= 0;
                 sentinelError <= 0;
@@ -71,10 +76,24 @@ always @(posedge clk) begin
         MSG_STATE_SENTINEL: begin
             if (dataIn == SENTINEL) begin
                 checksumAcc <= checksumAcc ^ dataIn;
+                byteWaitCounter <= 0;
                 msgState <= MSG_STATE_MSG_TYPE;
             end else begin
                 sentinelError <= 1;
                 msgState <= MSG_STATE_IDLE; // move back to idle if wrong sentinel
+            end
+        end
+        MSG_STATE_MSG_TYPE: begin
+            if (byteReadyEdge) begin
+                msgType <= dataIn;
+                checksumAcc <= checksumAcc ^ dataIn;
+                byteWaitCounter <= 0;
+                msgState <= MSG_STATE_ORDER_ID;
+            end else if (byteWaitCounter == TIMEOUT_CYCLES - 1) begin
+                timeOutError <= 1;
+                msgState <= MSG_STATE_IDLE;
+            end else begin
+                byteWaitCounter <= byteWaitCounter + 1;
             end
         end
     endcase
