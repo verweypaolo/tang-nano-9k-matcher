@@ -30,15 +30,23 @@ uart_rx #(
     .dataIn(dataIn)
 );
 
+
 reg [3:0] msgState; // track state
 reg [7:0] checksumAcc; // accumulate XOR of every received byte, check checksum at the end
+reg byteCounter; // track which byte in states that have two bytes
 reg [$clog2(TIMEOUT_CYCLES):0] byteWaitCounter;
-reg sentinelError; // assert if erroneous sentinel received
-reg timeOutError; // assert if more than N cycles before receiving a byte
-reg byteReadyPrev; // for edge construction
-wire byteReadyEdge = byteReady & ~byteReadyPrev; // edge
 
-reg [7:0] msgType; // store message type
+// errors
+reg sentinelError; // assert if erroneous sentinel received
+reg timeOutError; // assert if more than TIMEOUT_CYCLES cycles before receiving a byte
+
+// for byteReady edge
+reg byteReadyPrev;
+wire byteReadyEdge = byteReady & ~byteReadyPrev;
+
+// store message content
+reg [7:0] msgType;
+reg [15:0] orderID; 
 
 localparam MSG_STATE_IDLE = 0;
 localparam MSG_STATE_SENTINEL  = 1; // validate sentinel byte
@@ -52,11 +60,13 @@ localparam MSG_STATE_CHECKSUM  = 7; // capture + verify checksum byte
 initial begin
     msgState = 0;
     checksumAcc = 0;
+    byteCounter = 0;
     byteWaitCounter = 0;
     sentinelError = 0;
     timeOutError = 0;
     byteReadyPrev = 0;
     msgType = 0;
+    orderID = 0;
 end
 
 always @(posedge clk) begin
@@ -87,8 +97,28 @@ always @(posedge clk) begin
             if (byteReadyEdge) begin
                 msgType <= dataIn;
                 checksumAcc <= checksumAcc ^ dataIn;
+                byteCounter <= 0;
                 byteWaitCounter <= 0;
                 msgState <= MSG_STATE_ORDER_ID;
+            end else if (byteWaitCounter == TIMEOUT_CYCLES - 1) begin
+                timeOutError <= 1;
+                msgState <= MSG_STATE_IDLE;
+            end else begin
+                byteWaitCounter <= byteWaitCounter + 1;
+            end
+        end
+        MSG_STATE_ORDER_ID: begin
+            if (byteReadyEdge) begin
+                orderID <= {orderID[7:0], dataIn}; // shift register for data, big endian
+                checksumAcc <= checksumAcc ^ dataIn;
+                byteWaitCounter <= 0;
+                
+                if (byteCounter == 1) begin
+                    byteCounter <= 0;
+                    msgState <= MSG_STATE_SIDE;
+                end else begin
+                    byteCounter <= byteCounter + 1;
+                end
             end else if (byteWaitCounter == TIMEOUT_CYCLES - 1) begin
                 timeOutError <= 1;
                 msgState <= MSG_STATE_IDLE;
