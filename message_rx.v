@@ -46,7 +46,8 @@ wire byteReadyEdge = byteReady & ~byteReadyPrev;
 
 // store message content
 reg [7:0] msgType;
-reg [15:0] orderID; 
+reg [15:0] orderID;
+reg [7:0] side; // 1 if sell 
 
 localparam MSG_STATE_IDLE = 0;
 localparam MSG_STATE_SENTINEL  = 1; // validate sentinel byte
@@ -67,6 +68,7 @@ initial begin
     byteReadyPrev = 0;
     msgType = 0;
     orderID = 0;
+    side = 0;
 end
 
 always @(posedge clk) begin
@@ -119,6 +121,20 @@ always @(posedge clk) begin
                 end else begin
                     byteCounter <= byteCounter + 1;
                 end
+            end else if (byteWaitCounter == TIMEOUT_CYCLES - 1) begin
+                timeOutError <= 1;
+                msgState <= MSG_STATE_IDLE;
+            end else begin
+                byteWaitCounter <= byteWaitCounter + 1;
+            end
+        end
+        MSG_STATE_SIDE: begin
+            if (byteReadyEdge) begin
+                side <= dataIn;
+                checksumAcc <= checksumAcc ^ dataIn;
+                byteCounter <= 0;
+                byteWaitCounter <= 0;
+                msgState <= MSG_STATE_PRICE;
             end else if (byteWaitCounter == TIMEOUT_CYCLES - 1) begin
                 timeOutError <= 1;
                 msgState <= MSG_STATE_IDLE;
