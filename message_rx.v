@@ -7,7 +7,16 @@ module message_rx
 )
 (
     input clk,
-    input uart_rx
+    input uart_rx,
+    output reg messageReady,
+    output reg sentinelError,
+    output reg timeOutError,
+    output reg checksumError,
+    output reg [7:0] msgType,
+    output reg [15:0] orderID,
+    output reg [7:0] side,
+    output reg [15:0] price,
+    output reg [15:0] quantity
 );
 
 // must be confortable longer than minimum delay (BAUD_DIVISOR * 11)
@@ -35,23 +44,10 @@ reg [3:0] msgState; // track state
 reg [7:0] checksumAcc; // accumulate XOR of every received byte, check checksum at the end
 reg byteCounter; // track which byte in states that have two bytes
 reg [$clog2(TIMEOUT_CYCLES):0] byteWaitCounter;
-reg messageReady;
-
-// errors
-reg sentinelError; // assert if sentinel doesn't match
-reg timeOutError; // assert if more than TIMEOUT_CYCLES cycles before receiving a byte
-reg checksumError; // assert if checksum doesn't match
 
 // for byteReady edge
 reg byteReadyPrev;
 wire byteReadyEdge = byteReady & ~byteReadyPrev;
-
-// store message content
-reg [7:0] msgType;
-reg [15:0] orderID;
-reg [7:0] side; // 1 if sell
-reg [15:0] price;
-reg [15:0] quantity;
 
 localparam MSG_STATE_IDLE = 0;
 localparam MSG_STATE_SENTINEL  = 1; // validate sentinel byte
