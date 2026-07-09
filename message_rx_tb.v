@@ -16,13 +16,16 @@ module message_rx_tb;
     wire [7:0] side;
     wire [15:0] price;
     wire [15:0] quantity;
-
+    
+    localparam SENTINEL = 8'hAA;
     localparam BAUD_DIVISOR = 8; // faster for simulation purposes
-
+    
 
     message_rx
     #(
-        .BAUD_DIVISOR(BAUD_DIVISOR) 
+        .SENTINEL(SENTINEL),
+        .BAUD_DIVISOR(BAUD_DIVISOR)
+        
     ) dut (
         .clk(clk),
         .uart_rx(uart_rx_line),
@@ -72,6 +75,36 @@ module message_rx_tb;
             
             uart_rx_line = 1; // stop bit
             hold_for_bit_period;
+        end
+    endtask
+
+    task send_order;
+        input [7:0] msgTypeIn; // suffix In to avoid name collisions with module level wires
+        input [15:0] orderIDIn;
+        input [7:0] sideIn;
+        input [15:0] priceIn;
+        input [15:0] quantityIn;
+        reg [7:0] checksum;
+        begin
+            checksum = SENTINEL 
+                ^ msgTypeIn 
+                ^ orderIDIn[15:8]
+                ^ orderIDIn[7:0] 
+                ^ sideIn 
+                ^ priceIn[15:8]
+                ^ priceIn[7:0]
+                ^ quantityIn[15:8]
+                ^ quantityIn[7:0];
+            send_byte(SENTINEL);
+            send_byte(msgTypeIn);
+            send_byte(orderIDIn[15:8]); // high byte first (big endian)
+            send_byte(orderIDIn[7:0]);
+            send_byte(sideIn);
+            send_byte(priceIn[15:8]);
+            send_byte(priceIn[7:0]);
+            send_byte(quantityIn[15:8]);
+            send_byte(quantityIn[7:0]);
+            send_byte(checksum);
         end
     endtask
 
