@@ -1,0 +1,33 @@
+A possible timing error might occur where messageReady is not asserted yet because the 
+state machine in message_rx is still processing, when the testbench checks the condition:
+'if (messageReady !== 1) begin'.
+
+Trace the timing:
+
+in testbench:
+- At the end of send_order, send_byte(checksum) is called
+- At the end of send_byte, hold_for_bit_period is called
+    - This holds the stopbit of the checksum byte for one bit period (
+        which is BAUD_DIVISOR clock cycles long)
+
+in uart_rx:
+- In the stop bit state of the checksum byte, (rxCounter + 1) == rxDelayFrames should trigger
+on cycle 4 or 5 (in the middle) of the bit frame / hold_for_bit_period.
+- On the next cycle (provided there is no error), cycle 6, byteReady should be asserted
+
+in message_rx:
+- In the CHECKSUM state, the byteReadyEdge should trigger on cycle 6, as this is when
+byteReady is asserted in uart_rx (and wire byteReadyEdge = byteReady & ~byteReadyPrev;
+so it's instant)
+- Then messageReady should be asserted from the next clock cycle on, cycle 7 (given
+no checksum error)
+
+The testbench only evaluates 'if (messageReady !== 1) begin' on clock cycle 9 
+(relative to the start of the last hold_for_bit_period), due to one clock cycle delay 
+that was added. 
+Hence, there should not be a timing error where messageReady might not be asserted before
+the testbench checks the condition!
+
+There might be a one cycle drift in reading the stop bit due to the fractional baud accumulator
+in the uart implementation, however this drift should be limited to 1 frame [deeper dive on why]
+so that there still is no timing issue.
