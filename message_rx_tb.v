@@ -109,6 +109,11 @@ module test;
         end
     endtask
 
+    initial begin
+        $dumpfile("message_rx_tb.vcd"); // name of the output waveform file
+        $dumpvars(0, test);    // 0 = dump all levels of hierarchy, starting from this module
+    end
+
 
     // call tests
     initial begin
