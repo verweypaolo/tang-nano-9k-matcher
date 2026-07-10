@@ -108,4 +108,27 @@ module message_rx_tb;
         end
     endtask
 
+
+    // call tests
+    initial begin
+        #20; // brief settle time (2 clock cycles equivalent)
+        send_order(8'h01, 16'h1234, 8'h00, 
+        16'h0050, 16'h0064);
+
+        // one clock cycle wait to allow the state machine to process and drive outputs
+        @(posedge clk); 
+
+        if (messageReady !== 1) begin
+            $display("FAIL: messageReady not asserted after valid order");
+        end else if (msgType !== 8'h01 || orderID !== 16'h1234 || side !== 8'h00
+                 || price !== 16'h0050 || quantity !== 16'h0064) begin
+            $display("FAIL: fields mismatch. Got msgType=%h orderID=%h side=%h price=%h quantity=%h",
+          msgType, orderID, side, price, quantity);
+        end else begin
+            $display("PASS: valid order received and decoded correctly");
+        end
+
+        $finish;
+    end
+
 endmodule
