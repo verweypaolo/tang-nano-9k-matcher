@@ -31,3 +31,4 @@ the testbench checks the condition!
 There might be a one cycle drift in reading the stop bit due to the fractional baud accumulator
 in the uart implementation, however this drift should be limited to 1 frame [deeper dive on why]
 so that there still is no timing issue.
+=> solution, pass through fractional accumulator parameters and set increment = 0

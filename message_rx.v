@@ -3,7 +3,9 @@
 module message_rx 
 #(
     parameter SENTINEL = 8'hAA, // sentinel byte
-    parameter BAUD_DIVISOR = 234
+    parameter BAUD_DIVISOR = 234,
+    parameter ACC_INCREMENT = 3,
+    parameter ACC_MODULUS = 8
 )
 (
     input clk,
@@ -29,7 +31,9 @@ wire parityError;
 wire [7:0] dataIn;
 
 uart_rx #(
-    .BAUD_DIVISOR(BAUD_DIVISOR)
+    .BAUD_DIVISOR(BAUD_DIVISOR),
+    .ACC_INCREMENT(ACC_INCREMENT),
+    .ACC_MODULUS(ACC_MODULUS)
 ) uart (
     .clk(clk),
     .uart_rx(uart_rx),

@@ -24,7 +24,8 @@ module message_rx_tb;
     message_rx
     #(
         .SENTINEL(SENTINEL),
-        .BAUD_DIVISOR(BAUD_DIVISOR)
+        .BAUD_DIVISOR(BAUD_DIVISOR),
+        .ACC_INCREMENT(0)
         
     ) dut (
         .clk(clk),
