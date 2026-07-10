@@ -109,6 +109,12 @@ module test;
         end
     endtask
 
+    task send_order_bad_sentinel;
+        begin
+            send_byte(8'hBB);
+        end
+    endtask
+
     initial begin
         $dumpfile("message_rx_tb.vcd"); // name of the output waveform file
         $dumpvars(0, test);    // 0 = dump all levels of hierarchy, starting from this module
@@ -118,6 +124,8 @@ module test;
     // call tests
     initial begin
         #20; // brief settle time (2 clock cycles equivalent)
+
+        // Normal order test
         send_order(8'h01, 16'h1234, 8'h00, 
         16'h0050, 16'h0064);
 
@@ -132,6 +140,21 @@ module test;
           msgType, orderID, side, price, quantity);
         end else begin
             $display("PASS: valid order received and decoded correctly");
+        end
+
+        // Notice no wait between tests: test if return to IDLE in time
+
+        // Bad sentinel test
+        send_order_bad_sentinel;
+        @(posedge clk);
+        @(posedge clk);
+
+        if (sentinelError !== 1) begin
+            $display("FAIL: sentinelError not asserted after invalid sentinel");
+        end else if (messageReady === 1) begin
+            $display("FAIL: messageReady incorrectly asserted after invalid sentinel");
+        end else begin
+            $display("PASS: sentinelError correctly asserted, messageReady correctly not asserted");
         end
 
         $finish;
