@@ -155,9 +155,16 @@ module test;
         end
     endtask
 
+    task send_order_resync_after_garbage;
+        begin
+            send_byte(8'hBB); // send garbage byte
+            send_order(8'h01, 16'h1234, 8'h00, 
+            16'h0050, 16'h0064); // immediately send valid order
+        end
+    endtask
 
     initial begin
-        $dumpfile("message_rx_tb.vcd"); // name of the output waveform file
+        $dumpfile("message_rx_tb.vcd"); // output waveform file
         $dumpvars(0, test);    // 0 = dump all levels of hierarchy, starting from this module
     end
 
@@ -225,6 +232,20 @@ module test;
             $display("FAIL: checksumError incorrectly asserted after timeout");
         end else begin
             $display("PASS: timeOutError correctly asserted, no other flags incorrectly set");
+        end
+
+        //  Resync after garbage test
+        send_order_resync_after_garbage;
+        @(posedge clk);
+
+        if (messageReady !== 1) begin
+            $display("FAIL: messageReady not asserted after resync from garbage byte");
+        end else if (msgType !== 8'h01 || orderID !== 16'h1234 || side !== 8'h00
+                    || price !== 16'h0050 || quantity !== 16'h0064) begin
+            $display("FAIL: fields mismatch after resync. Got msgType=%h orderID=%h side=%h price=%h quantity=%h",
+                    msgType, orderID, side, price, quantity);
+        end else begin
+            $display("PASS: correctly resynced after garbage byte and decoded valid order");
         end
 
         $finish;
