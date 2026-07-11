@@ -115,6 +115,37 @@ module test;
         end
     endtask
 
+    task send_order_bad_checksum;
+        input [7:0] msgTypeIn; // suffix In to avoid name collisions with module level wires
+        input [15:0] orderIDIn;
+        input [7:0] sideIn;
+        input [15:0] priceIn;
+        input [15:0] quantityIn;
+        reg [7:0] checksum;
+        begin
+            checksum = 8'hBB 
+                ^ msgTypeIn 
+                ^ orderIDIn[15:8]
+                ^ orderIDIn[7:0] 
+                ^ sideIn 
+                ^ priceIn[15:8]
+                ^ priceIn[7:0]
+                ^ quantityIn[15:8]
+                ^ quantityIn[7:0];
+            send_byte(SENTINEL);
+            send_byte(msgTypeIn);
+            send_byte(orderIDIn[15:8]); // high byte first (big endian)
+            send_byte(orderIDIn[7:0]);
+            send_byte(sideIn);
+            send_byte(priceIn[15:8]);
+            send_byte(priceIn[7:0]);
+            send_byte(quantityIn[15:8]);
+            send_byte(quantityIn[7:0]);
+            send_byte(checksum);
+        end
+    endtask
+
+
     initial begin
         $dumpfile("message_rx_tb.vcd"); // name of the output waveform file
         $dumpvars(0, test);    // 0 = dump all levels of hierarchy, starting from this module
@@ -155,6 +186,19 @@ module test;
             $display("FAIL: messageReady incorrectly asserted after invalid sentinel");
         end else begin
             $display("PASS: sentinelError correctly asserted, messageReady correctly not asserted");
+        end
+
+        // Bad checksum test
+        send_order_bad_checksum(8'h01, 16'h1234, 8'h00, 
+        16'h0050, 16'h0064);
+        @(posedge clk);
+
+        if (checksumError !== 1) begin
+            $display("FAIL: checksumError not asserted after invalid checksum");
+        end else if (messageReady === 1) begin
+            $display("FAIL: messageReady incorrectly asserted after invalid checksum");
+        end else begin
+            $display("PASS: checksumError correctly asserted, messageReady correctly not asserted");
         end
 
         $finish;
