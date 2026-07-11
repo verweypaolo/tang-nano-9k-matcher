@@ -5,7 +5,7 @@ A UART-based order matching engine implemented in hand-coded Verilog for the
 (Gowin GW1NR-9C, 27 MHz).
 
 This project builds an application layer on top of a separate, standalone UART
-implementation ([tang-nano-uart](#) — link to that repo). Where that repo is a
+implementation ([tang-nano-uart](https://github.com/verweypaolo/tang-nano-9k-uart) — link to that repo). Where that repo is a
 showcase of the UART protocol itself (fractional baud generation, parity,
 framing-error detection), this repo is a showcase of *using* UART as a
 transport for something more interesting: a reactive market-matching engine
@@ -38,9 +38,9 @@ matching engine   messages -> book updates / executions   (planned)
 
 - **`uart_rx.v`** — RX-only port of the UART core from `tang-nano-uart`,
   producing one `byteReady` pulse per received byte.
-- **`message_rx.v`** *(complete)* — a state machine that consumes UART bytes
-  and assembles them into a fixed-length order message, validating framing
-  and checksum before asserting `messageReady`.
+- **`message_rx.v`** *(complete, tested)* — a state machine that consumes
+  UART bytes and assembles them into a fixed-length order message, validating
+  framing and checksum before asserting `messageReady`.
 - **matching engine** *(planned)* — maintains a resting order book and
   matches incoming orders against it on a `messageReady` pulse.
 
@@ -95,11 +95,45 @@ treated as a hard invariant, not an optional refinement.
 sentinel, so the FSM naturally regains frame sync after any corruption or
 stray byte without needing special-case recovery logic.
 
+## Testing
+
+`message_rx_tb.v` is a self-checking Icarus Verilog testbench (module `test`)
+that instantiates `message_rx` (which in turn instantiates `uart_rx`) and
+drives it bit-serially via a `send_byte` task, built up into full order frames
+via `send_order`. The fractional baud accumulator (`ACC_INCREMENT`) is
+disabled in simulation to keep bit timing exactly deterministic, since it
+exists to approximate a real-world fractional baud rate that has no meaning
+at the simulated clock speed used for fast testing.
+
+All test cases run in a single sequential `initial` block, deliberately with
+no gap between most of them, so that each test also implicitly verifies
+`message_rx` correctly resets its internal state (checksum accumulator, byte
+counter, error flags) and is ready for the next message immediately —
+catching exactly the class of stale-state bug that's easy to introduce when
+building up a multi-state FSM incrementally.
+
+Current coverage, all passing:
+
+- **Valid order** — correct sentinel, fields, and checksum decode correctly
+  and assert `messageReady`.
+- **Bad sentinel** — an incorrect first byte asserts `sentinelError` without
+  asserting `messageReady`.
+- **Bad checksum** — a correctly-framed message with a deliberately wrong
+  checksum byte asserts `checksumError` without asserting `messageReady`.
+- **Timeout** — a partial message followed by prolonged silence asserts
+  `timeOutError`, with no other error/ready flag incorrectly set.
+- **Resync after garbage** — a single stray non-sentinel byte followed
+  immediately by a valid order confirms the FSM recovers and decodes the
+  valid message with no special-case handling needed.
+- **Back-to-back valid messages** — two consecutive, distinct valid orders
+  with no gap between them, checked independently, confirming per-message
+  state is fully reset between messages rather than leaking forward.
+
 ## Status
 
 - [x] `uart_rx.v` ported from `tang-nano-uart`
 - [x] `message_rx.v` — message FSM, checksum validation, resync handling
-- [ ] `message_rx.v` testbench
+- [x] `message_rx.v` testbench — all scenarios passing
 - [ ] Order book storage
 - [ ] Matching logic
 - [ ] TX-side execution reports
