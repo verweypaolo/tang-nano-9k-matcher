@@ -1,0 +1,25 @@
+TIMEOUT_CYCLES = BAUD_DIVISOR * 11 * 20
+timeoutError should assert when: byteWaitCounter == TIMEOUT_CYCLES - 1 
+- (= BAUD_DIVISOR * 11 * 20 - 1)
+- byteWaitCounter increments every clock cycle (when waiting)
+
+The cycle after a byteReadyEdge is detected, which is instantly (see definition), the FSM
+switches to a new state and this state starts counting byteWaitCounter.
+
+In the test:
+- send_byte(SENTINEL)
+- UART asserts byteReady (on cycle ~6 of hold_for_bit_period of send_byte, 
+see messageReady_timing.txt)
+- cycle after: message_rx checks SENTINEL (cycle 7 of hold_for_bit_period of send_byte)
+- cycle after: message_rx is in MSG_TYPE state, waiting for next byte (cycle 8 of 
+hold_for_bit_period of send_byte). Here byteWaitCounter is 0, and +1 for every cycle after
+- The test pauses for exactly TIMEOUT_CYCLES clock cycles (from cycle '9' of hold_for_bit_period)
+- At the end byteWaitCounter should be TIMEOUT_CYCLES, so that means the timeoutError
+has already asserted the cycle before
+
+=> this test definition should trigger a timeout warning
+
+NOTE: this is actually a worst-case lower bound, as byteWaitCounter might start incrementing
+on an earlier clock cycle, s.t. there are more clock cycles of slack than just 1 (for triggering
+the timeout error).
+-> look at waveform to see if this is indeed observed

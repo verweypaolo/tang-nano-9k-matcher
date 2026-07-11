@@ -145,6 +145,16 @@ module test;
         end
     endtask
 
+    task send_order_timeout;
+        integer i;
+        begin
+            send_byte(SENTINEL);
+            for (i = 0; i < BAUD_DIVISOR * 11 * 20; i = i + 1) begin
+                @(posedge clk);
+            end
+        end
+    endtask
+
 
     initial begin
         $dumpfile("message_rx_tb.vcd"); // name of the output waveform file
@@ -199,6 +209,22 @@ module test;
             $display("FAIL: messageReady incorrectly asserted after invalid checksum");
         end else begin
             $display("PASS: checksumError correctly asserted, messageReady correctly not asserted");
+        end
+
+        // Timeout error test
+        send_order_timeout;
+        // no wait, happens internally in test
+
+        if (timeOutError !== 1) begin
+            $display("FAIL: timeOutError not asserted after prolonged silence");
+        end else if (messageReady === 1) begin
+            $display("FAIL: messageReady incorrectly asserted after timeout");
+        end else if (sentinelError === 1) begin
+            $display("FAIL: sentinelError incorrectly asserted after timeout");
+        end else if (checksumError === 1) begin
+            $display("FAIL: checksumError incorrectly asserted after timeout");
+        end else begin
+            $display("PASS: timeOutError correctly asserted, no other flags incorrectly set");
         end
 
         $finish;
