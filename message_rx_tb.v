@@ -248,6 +248,29 @@ module test;
             $display("PASS: correctly resynced after garbage byte and decoded valid order");
         end
 
+        // Back to back valid messages test
+        send_order(8'h01, 16'h1234, 8'h00, 16'h0050, 16'h0064);
+        @(posedge clk);
+
+        if (messageReady !== 1 || msgType !== 8'h01 || orderID !== 16'h1234
+            || side !== 8'h00 || price !== 16'h0050 || quantity !== 16'h0064) begin
+            $display("FAIL: first back-to-back message not decoded correctly. Got msgType=%h orderID=%h side=%h price=%h quantity=%h",
+                    msgType, orderID, side, price, quantity);
+        end else begin
+            $display("PASS: first back-to-back message decoded correctly");
+        end
+
+        send_order(8'h02, 16'h5678, 8'h01, 16'h0025, 16'h0032);
+        @(posedge clk);
+
+        if (messageReady !== 1 || msgType !== 8'h02 || orderID !== 16'h5678
+            || side !== 8'h01 || price !== 16'h0025 || quantity !== 16'h0032) begin
+            $display("FAIL: second back-to-back message not decoded correctly (checksumAcc or other state may not have reset). Got msgType=%h orderID=%h side=%h price=%h quantity=%h",
+                    msgType, orderID, side, price, quantity);
+        end else begin
+            $display("PASS: second back-to-back message decoded correctly — reset behavior confirmed");
+        end
+
         $finish;
     end
 
