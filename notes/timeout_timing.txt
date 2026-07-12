@@ -23,3 +23,7 @@ NOTE: this is actually a worst-case lower bound, as byteWaitCounter might start 
 on an earlier clock cycle, s.t. there are more clock cycles of slack than just 1 (for triggering
 the timeout error).
 -> look at waveform to see if this is indeed observed
+
+Waveform shows that indeed, byteReady is asserted in cycle 4 (so from cycle 5 onwards). This gives one extra cycle
+leeway compared to the logic above. Moreover, the test results are good, so both the waveform and the test indicate
+there is no timing issue.

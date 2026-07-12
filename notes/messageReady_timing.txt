@@ -32,3 +32,9 @@ There might be a one cycle drift in reading the stop bit due to the fractional b
 in the uart implementation, however this drift should be limited to 1 frame [deeper dive on why]
 so that there still is no timing issue.
 => solution, pass through fractional accumulator parameters and set increment = 0
+
+
+Inspecting the waveform shows that byteReady is asserted from the 5th cycle (when the integer counter i is 4) onwards.
+This means that (rxCounter + 1) == rxDelayFrames triggers during the 4th cycle, which is indeed in the middle as 
+expected (and intended). And, this is actually one cycle earlier than assumed in the reasoning above, giving another cycle
+of leeway. Hence, next to the test results being correct, the waveform inspection also indicates no timing error!
