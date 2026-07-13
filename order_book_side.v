@@ -20,12 +20,18 @@ module order_book_side
     output reg [15:0] price [0:N-1],
     output reg [15:0] quantity [0:N-1],
     output reg [15:0] orderID [0:N-1],
-    output reg [15:0] seqNum [0:N-1]
+    output reg [15:0] seqNum [0:N-1],
+
+    output reg simultaneousOpError
 );
 
 // insertion edge
 reg insertValidPrev;
 wire insertValidEdge = insertValid & !insertValidPrev;
+
+// removal edge
+reg removeValidPrev;
+wire removeValidEdge = removeValid & !removeValidPrev;
 
 // edge cases
 wire bookEmpty = (valid == 8'b0);
@@ -50,7 +56,9 @@ end
 integer i;
 initial begin
     insertValidPrev = 0;
+    removeValidPrev = 0;
     valid = 0;
+    simultaneousOpError = 0;
     for (i = 0; i < N; i = i + 1) begin
         price[i] = 0;
         quantity[i] = 0;
@@ -61,10 +69,16 @@ end
 
 always @(posedge clk) begin
     insertValidPrev <= insertValid;
+    removeValidPrev <= removeValid;
 end
 
 always @(posedge clk) begin
-    if (insertValidEdge) begin
+    if (insertValidEdge && removeValidEdge) begin
+        simultaneousOpError <= 1;
+        // don't do anything else: safest, though can design a tie break here
+    end
+    else if (insertValidEdge) begin
+        simultaneousOpError <= 0;
         if (bookEmpty) begin
             valid[0] <= 1;
             price[0] <= insertPrice;
