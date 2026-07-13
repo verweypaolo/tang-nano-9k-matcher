@@ -2,7 +2,8 @@
 
 module order_book_side
 #(
-    parameter N = 8
+    parameter N = 8,
+    parameter DESCENDING = 1 // 1 = bid, highest price on top i.e. descending on price
 )
 (
     input clk,
@@ -29,6 +30,21 @@ wire insertValidEdge = insertValid & !insertValidPrev;
 // edge cases
 wire bookEmpty = (valid == 8'b0);
 wire bookFull = &valid; // AND reduction
+
+// insertion index
+reg [3:0] insertIndex; // target index
+integer j;
+
+always @(*) begin // runs combinationally! Continuously provides insertion index
+    insertIndex = N;
+    for (j = 0; j < N; j = j + 1) begin
+        if (insertIndex == N) begin
+            if (!valid[j] || (DESCENDING ? (insertPrice > price[j]) : (insertPrice < price[j]))) begin
+                insertIndex = j;
+            end
+        end
+    end
+end
 
 // initialization
 integer i;
@@ -59,11 +75,32 @@ always @(posedge clk) begin
         else if (bookFull) begin
         end
         else begin // normal case
+            // combinational logic, everything happens at once and is updated on next clock cyle => no timing error with assigning
+            // at the insert index and also having to shift the old value!
+            for (i = 0; i < N; i = i + 1) begin
+                if (i < insertIndex) begin // works for both bid and ask due to insertIndex construction (DESCENDING)
+                    // do nothing, entries have higher price (bid) or lower price (ask)
+                end
+                else if (i == insertIndex) begin
+                    valid[i] <= 1;
+                    price[i] <= insertPrice;
+                    quantity[i] <= insertQuantity;
+                    orderID[i] <= insertOrderID;
+                    seqNum[i] <= insertSeqNum;
+                end
+                else begin
+                    // increase index by 1 for everything below the insertIndex
+                    valid[i]    <= valid[i-1];
+                    price[i]    <= price[i-1];
+                    quantity[i] <= quantity[i-1];
+                    orderID[i]  <= orderID[i-1];
+                    seqNum[i]   <= seqNum[i-1];
+                    // note: book cannot be full here, so at least one empty slot exists to shift empty/garbage entries into
+                end
+            end
         end
     end
 end
 
 
 endmodule
-
-
