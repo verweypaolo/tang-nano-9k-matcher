@@ -1,0 +1,29 @@
+A. Choosing the appropriate data structure to hold the orderbook
+
+
+1. Choosing the right memory
+
+There are three types of memory available for the orderbook in the Sipeed Tang Nano 9k:
+- Register / distrubuted RAM: similar to message_rx implementation, implement everything in register.
+The advantage is that everything can be accessed combinationally, the disadvantage is the cost of registers
+and also the cost of LUTs for the lookup logic implementation.
+- Block SRAM (BRAM): dedicated memory hardware, good for larger storage (beyond register capacity). However, you
+cannot access each entry simultaneously (it is addressed memory, so can only access one address per cycle).
+- External PSRAM: Off chip, much larger and much slower. It will take dozens of cycles per read/write.
+
+Based on the industry's focus on low-latency, using registers (distributed RAM) is the best choice. Accessing
+the orders in memory will be much faster (though at a high(er) hardware cost, but minimizing this is not the focus).
+
+2. Choosing how many orders are stored on each side of the orderbook (N)
+
+I decided to go with a safe number N = 8, and I will see after this is implemented and works what the associated cost is 
+in terms of LUTS/Flip-flops and see if I can scale it to N = 16, 32 etc. N = 8 should be safe enough that there is enough
+hardware left over for the logic, and for the planned additions after the orderbook.
+
+3. Choosing a sorted or unsorted implementation
+
+While it seems possible (due to the low N = 8) to devise an unsorted implementation that searches for a matching order in
+a single cycle, I think it's more realistic to focus on minimizing matching time with a sorted approach. This way finding
+a matching order is trivial (one cycle/ O(1)), at the cost of slower insertion. It also seems to me that this matches the 
+industry's low-latency focus.
+Though, again due to the low number, I think it's possible to speed up the insertion with a combinational implementation.
