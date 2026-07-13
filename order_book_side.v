@@ -22,7 +22,9 @@ module order_book_side
     output reg [15:0] orderID [0:N-1],
     output reg [15:0] seqNum [0:N-1],
 
-    output reg simultaneousOpError
+    output reg simultaneousOpError,
+    output reg insertFullError,
+    output reg removeEmptyError
 );
 
 // insertion edge
@@ -59,6 +61,8 @@ initial begin
     removeValidPrev = 0;
     valid = 0;
     simultaneousOpError = 0;
+    insertFullError = 0;
+    removeEmptyError = 0;
     for (i = 0; i < N; i = i + 1) begin
         price[i] = 0;
         quantity[i] = 0;
@@ -79,30 +83,30 @@ always @(posedge clk) begin
     end
     else if (insertValidEdge) begin
         simultaneousOpError <= 0;
+        insertFullError <= 0;
+        removeEmptyError <= 0;
+
         if (bookEmpty) begin
             valid[0] <= 1;
             price[0] <= insertPrice;
             quantity[0] <= insertQuantity;
             orderID[0] <= insertOrderID;
             seqNum[0] <= insertSeqNum;
-        end
-        else if (bookFull) begin
-        end
-        else begin // normal case
+        end else if (bookFull) begin
+            insertFullError <= 1;
+        end else begin // normal case
             // combinational logic, everything happens at once and is updated on next clock cyle => no timing error with assigning
             // at the insert index and also having to shift the old value!
             for (i = 0; i < N; i = i + 1) begin
                 if (i < insertIndex) begin // works for both bid and ask due to insertIndex construction (DESCENDING)
                     // do nothing, entries have higher price (bid) or lower price (ask)
-                end
-                else if (i == insertIndex) begin
+                end else if (i == insertIndex) begin
                     valid[i] <= 1;
                     price[i] <= insertPrice;
                     quantity[i] <= insertQuantity;
                     orderID[i] <= insertOrderID;
                     seqNum[i] <= insertSeqNum;
-                end
-                else begin
+                end else begin
                     // increase index by 1 for everything below the insertIndex
                     valid[i]    <= valid[i-1];
                     price[i]    <= price[i-1];
@@ -112,6 +116,23 @@ always @(posedge clk) begin
                     // note: book cannot be full here, so at least one empty slot exists to shift empty/garbage entries into
                 end
             end
+        end
+    end else if (removeValidEdge) begin
+        simultaneousOpError <= 0;
+        insertFullError <= 0;
+        removeEmptyError <= 0;
+
+        if (bookEmpty) begin
+            removeEmptyError <= 1;
+        end else begin // non-empty book
+            for (i = 0; i < N - 1; i = i + 1) begin
+                valid[i] <= valid[i+1];
+                price[i] <= price[i+1];
+                quantity[i] <= quantity[i+1];
+                orderID[i] <= orderID[i+1];
+                seqNum[i] <= seqNum[i+1];
+            end
+            valid[N-1] <= 0; // last row always has to be invalidated
         end
     end
 end
