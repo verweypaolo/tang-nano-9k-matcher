@@ -165,9 +165,64 @@ module test_order_book_side;
         end else begin
             $display("PASS: insert into empty book landed correctly in slot 0");
         end
-        
         print_book;
 
+
+        // Test 4a: insert a second entry (lower price - should land after slot 0)
+        @(posedge clk);
+        #1;
+        insertValid = 1;
+        insertPrice = 16'h0032;      // 50 — lower price, should sort after 100
+        insertQuantity = 16'h0005;
+        insertOrderID = 16'h0002;
+        insertSeqNum = 16'h0001;
+
+        @(posedge clk);
+        @(posedge clk);
+
+        #1;
+        insertValid = 0;
+
+        if (valid !== 8'b00000011) begin
+            $display("FAIL: valid mask = %b, expected 8'b00000011 after second insert", valid);
+        end else if (price[0*16 +: 16] !== 16'h0064 || price[1*16 +: 16] !== 16'h0032) begin
+            $display("FAIL: sort order incorrect after second insert. slot0=%h slot1=%h",
+                    price[0*16 +: 16], price[1*16 +: 16]);
+        end else begin
+            $display("PASS: second insert correctly appended after slot 0");
+        end
+        print_book;
+
+        // Test 4b: insert a price strictly between the two existing entries — forces a real shift
+        @(posedge clk);
+        #1;
+        insertValid = 1;
+        insertPrice = 16'h004B;      // 75 — belongs between 100 and 50
+        insertQuantity = 16'h0007;
+        insertOrderID = 16'h0003;
+        insertSeqNum = 16'h0002;
+
+        @(posedge clk);
+        @(posedge clk);
+
+        #1;
+        insertValid = 0;
+
+        if (valid !== 8'b00000111) begin
+            $display("FAIL: valid mask = %b, expected 8'b00000111 after middle insert", valid);
+        end else if (price[0*16 +: 16] !== 16'h0064 || orderID[0*16 +: 16] !== 16'h0001) begin
+            $display("FAIL: slot 0 disturbed by middle insert. price=%h orderID=%h",
+                    price[0*16 +: 16], orderID[0*16 +: 16]);
+        end else if (price[1*16 +: 16] !== 16'h004B || orderID[1*16 +: 16] !== 16'h0003) begin
+            $display("FAIL: new entry did not land correctly at slot 1. price=%h orderID=%h",
+                    price[1*16 +: 16], orderID[1*16 +: 16]);
+        end else if (price[2*16 +: 16] !== 16'h0032 || orderID[2*16 +: 16] !== 16'h0002) begin
+            $display("FAIL: original second entry did not shift correctly to slot 2. price=%h orderID=%h",
+                    price[2*16 +: 16], orderID[2*16 +: 16]);
+        end else begin
+            $display("PASS: middle insert correctly shifted existing entry and landed at slot 1");
+        end
+        print_book;
 
         $finish;
     end
