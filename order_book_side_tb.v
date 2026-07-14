@@ -378,6 +378,34 @@ module test_order_book_side;
         end
         print_book;
 
+
+        // Test 9: drain the book fully, then confirm removeEmptyError fires correctly once truly empty
+        do_remove;
+        do_remove;
+        do_remove;
+        do_remove;
+        do_remove;
+        do_remove;
+
+        if (valid !== 8'b00000000) begin
+            $display("FAIL: valid mask = %b, expected fully empty 8'b00000000 after draining", valid);
+        end else begin
+            $display("PASS: book correctly drained to fully empty");
+        end
+        print_book;
+
+        // now attempt one more remove on the genuinely-empty book
+        do_remove;
+
+        if (removeEmptyError !== 1) begin
+            $display("FAIL: removeEmptyError not asserted when removing from a book that was previously used and drained");
+        end else if (valid !== 8'b0) begin
+            $display("FAIL: valid mask changed despite empty-book removal rejection. valid=%b", valid);
+        end else begin
+            $display("PASS: removeEmptyError correctly asserted after full drain — empty/full transition logic confirmed");
+        end
+        print_book;
+
         $finish;
     end
 
