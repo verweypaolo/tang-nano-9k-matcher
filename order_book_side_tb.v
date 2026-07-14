@@ -344,6 +344,40 @@ module test_order_book_side;
         end
         print_book;
 
+        // Test 8: interleaved insert/remove — book should stay correctly sorted throughout
+        do_insert(16'h0046, 16'h0002, 16'h0009, 16'h0008); // price 70 — fills the last empty slot
+
+        if (valid !== 8'b11111111) begin
+            $display("FAIL: valid mask = %b, expected full 8'b11111111 after filling insert", valid);
+        end else if (price[2*16 +: 16] !== 16'h0046 || orderID[2*16 +: 16] !== 16'h0009) begin
+            $display("FAIL: slot 2 after insert = price=%h orderID=%h, expected price=0x46 orderID=0x9",
+                    price[2*16 +: 16], orderID[2*16 +: 16]);
+        end else begin
+            $display("PASS: insert correctly filled last empty slot");
+        end
+        print_book;
+
+        do_remove; // removes slot0 (75, id3) — book back to 7/8, one empty slot again
+
+        do_insert(16'h003C, 16'h0003, 16'h000A, 16'h0009); // price 60 — fills the newly-opened slot
+
+        if (valid !== 8'b11111111) begin
+            $display("FAIL: valid mask = %b, expected full 8'b11111111 after second interleaved insert", valid);
+        end else begin
+            $display("PASS: interleaved remove-then-insert correctly refilled the book");
+        end
+        print_book;
+
+        do_remove;
+        do_remove;
+
+        if (valid !== 8'b00111111) begin
+            $display("FAIL: valid mask = %b, expected 8'b00111111 after two more removes", valid);
+        end else begin
+            $display("PASS: interleaved sequence completed correctly");
+        end
+        print_book;
+
         $finish;
     end
 
