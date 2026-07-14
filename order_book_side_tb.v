@@ -75,6 +75,7 @@ module test_order_book_side;
         @(posedge clk); // let settle
         #1;
 
+
         // Test 1: simultaneous insert and remove - should be rejected and flagged
         insertValid = 1;
         removeValid = 1;
@@ -85,7 +86,7 @@ module test_order_book_side;
 
         @(posedge clk); // let edge register
         @(posedge clk); // let flag assert
-
+        #1;
         // reset
         insertValid = 0;
         removeValid = 0;
@@ -96,6 +97,28 @@ module test_order_book_side;
             $display("FAIL: book state changed despite simultaneous op rejection. valid=%b", valid);
         end else begin
             $display("PASS: simultaneousOpError correctly asserted, book state unchanged");
+        end
+
+
+        // Test 2: removing from an empty book should be rejected and flagged
+        @(posedge clk);
+        #1;
+        removeValid = 1;
+
+        @(posedge clk);
+        @(posedge clk);
+
+        #1;
+        removeValid = 0;
+
+        if (removeEmptyError !== 1) begin
+            $display("FAIL: removeEmptyError not asserted when removing from empty book");
+        end else if (valid !== 8'b0) begin
+            $display("FAIL: book state changed despite removal rejection. valid=%b", valid);
+        end else if (insertFullError == 1) begin
+            $display("FAIL: insertFullError incorrectly asserted during empty-book removal test");
+        end else begin
+            $display("PASS: removeEmptyError correctly asserted, book state unchanged");
         end
 
         $finish;
