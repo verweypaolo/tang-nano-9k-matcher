@@ -19,10 +19,10 @@ module test_order_book_side;
 
     // outputs from order_book_side
     wire [7:0] valid;
-    wire [15:0] price [0:N-1];
-    wire [15:0] quantity [0:N-1];
-    wire [15:0] orderID [0:N-1];
-    wire [15:0] seqNum [0:N-1];
+    wire [16*N-1:0] price;
+    wire [16*N-1:0] quantity;
+    wire [16*N-1:0] orderID;
+    wire [16*N-1:0] seqNum;
 
     wire simultaneousOpError;
     wire insertFullError;
