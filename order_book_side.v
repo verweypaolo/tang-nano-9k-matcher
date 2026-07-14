@@ -47,7 +47,8 @@ always @(*) begin // runs combinationally! Continuously provides insertion index
     insertIndex = N;
     for (j = 0; j < N; j = j + 1) begin
         if (insertIndex == N) begin
-            if (!valid[j] || (DESCENDING ? (insertPrice > price[j*16 +: 16]) : (insertPrice < price[j*16 +: 16]))) begin
+            if (!valid[j] || (DESCENDING ? (insertPrice > price[j*16 +: 16]) : (insertPrice < price[j*16 +: 16]))) begin 
+                // strict inequalities should guarantee time part of price-time priority
                 insertIndex = j;
             end
         end
