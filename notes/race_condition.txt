@@ -1,0 +1,6 @@
+If removing #1; from the first test in order_book_side_tb:
+
+The issue is that because the assignment insertValid = 1 from the testbench wins the race on this 
+first clock edge from the insertValidPrev <= insertValid assignment in the dut, insertValidPrev is 
+1 and insertValid is also 1 in the next cycle s.t. no edge is ever detected (now or after, as the 
+two are the same value now forever).

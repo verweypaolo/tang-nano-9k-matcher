@@ -73,7 +73,7 @@ module test_order_book_side;
 
     initial begin
         @(posedge clk); // let settle
-
+        #1;
 
         // Test 1: simultaneous insert and remove - should be rejected and flagged
         insertValid = 1;
