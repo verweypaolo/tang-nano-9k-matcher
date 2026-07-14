@@ -5,7 +5,7 @@ A UART-based order matching engine implemented in hand-coded Verilog for the
 (Gowin GW1NR-9C, 27 MHz).
 
 This project builds an application layer on top of a separate, standalone UART
-implementation ([tang-nano-uart](#) — link to that repo). Where that repo is a
+implementation ([tang-nano-uart](https://github.com/verweypaolo/tang-nano-9k-uart) — link to that repo). Where that repo is a
 showcase of the UART protocol itself (fractional baud generation, parity,
 framing-error detection), this repo is a showcase of *using* UART as a
 transport for something more interesting: a reactive market-matching engine
