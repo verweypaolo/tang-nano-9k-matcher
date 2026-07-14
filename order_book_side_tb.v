@@ -107,6 +107,21 @@ module test_order_book_side;
         end
     endtask
 
+    // reusable removal task
+    task do_remove;
+        begin
+            @(posedge clk);
+            #1;
+            removeValid = 1;
+
+            @(posedge clk);
+            @(posedge clk);
+
+            #1;
+            removeValid = 0;
+        end
+    endtask
+
     initial begin
         $dumpfile("order_book_side_tb.vcd"); // output waveform file
         $dumpvars(0, test_order_book_side);    // 0 = dump all levels of hierarchy, starting from this module
@@ -307,6 +322,25 @@ module test_order_book_side;
                     orderID[7*16 +: 16]);
         end else begin
             $display("PASS: insertFullError correctly asserted, book state unchanged");
+        end
+        print_book;
+
+
+        // Test 7: remove from a full book - top entry (100, id1) should be removed, everything shifts up
+        do_remove;
+
+        if (valid !== 8'b01111111) begin
+            $display("FAIL: valid mask = %b, expected 8'b01111111 after first removal", valid);
+        end else if (price[0*16 +: 16] !== 16'h004B || orderID[0*16 +: 16] !== 16'h0003) begin
+            $display("FAIL: slot 0 after removal = price=%h orderID=%h, expected price=0x4B orderID=0x3",
+                    price[0*16 +: 16], orderID[0*16 +: 16]);
+        end else if (price[6*16 +: 16] !== 16'h000A || orderID[6*16 +: 16] !== 16'h0008) begin
+            $display("FAIL: slot 6 after shift = price=%h orderID=%h, expected price=0x0A orderID=0x8",
+                    price[6*16 +: 16], orderID[6*16 +: 16]);
+        end else if (insertFullError === 1 || simultaneousOpError === 1 || removeEmptyError === 1) begin
+            $display("FAIL: an error flag incorrectly asserted during valid removal");
+        end else begin
+            $display("PASS: removal correctly removed slot 0 and shifted remaining entries up");
         end
         print_book;
 
