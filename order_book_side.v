@@ -16,11 +16,11 @@ module order_book_side
     input removeValid, // remove slot 0 on pulse
 
     // order book regs
-    output reg [7:0] valid, // packed vector
-    output reg [15:0] price [0:N-1],
-    output reg [15:0] quantity [0:N-1],
-    output reg [15:0] orderID [0:N-1],
-    output reg [15:0] seqNum [0:N-1],
+    output reg [7:0] valid, // packed vectors
+    output reg [16*N-1:0] price,
+    output reg [16*N-1:0] quantity,
+    output reg [16*N-1:0] orderID,
+    output reg [16*N-1:0] seqNum,
 
     output reg simultaneousOpError,
     output reg insertFullError,
@@ -47,7 +47,7 @@ always @(*) begin // runs combinationally! Continuously provides insertion index
     insertIndex = N;
     for (j = 0; j < N; j = j + 1) begin
         if (insertIndex == N) begin
-            if (!valid[j] || (DESCENDING ? (insertPrice > price[j]) : (insertPrice < price[j]))) begin
+            if (!valid[j] || (DESCENDING ? (insertPrice > price[j*16 +: 16]) : (insertPrice < price[j*16 +: 16]))) begin
                 insertIndex = j;
             end
         end
@@ -63,12 +63,10 @@ initial begin
     simultaneousOpError = 0;
     insertFullError = 0;
     removeEmptyError = 0;
-    for (i = 0; i < N; i = i + 1) begin
-        price[i] = 0;
-        quantity[i] = 0;
-        orderID[i] = 0;
-        seqNum[i] = 0;
-    end
+    price = 0;
+    quantity = 0;
+    orderID = 0;
+    seqNum = 0;
 end
 
 always @(posedge clk) begin
@@ -88,10 +86,10 @@ always @(posedge clk) begin
 
         if (bookEmpty) begin
             valid[0] <= 1;
-            price[0] <= insertPrice;
-            quantity[0] <= insertQuantity;
-            orderID[0] <= insertOrderID;
-            seqNum[0] <= insertSeqNum;
+            price[15:0] <= insertPrice;
+            quantity[15:0] <= insertQuantity;
+            orderID[15:0] <= insertOrderID;
+            seqNum[15:0] <= insertSeqNum;
         end else if (bookFull) begin
             insertFullError <= 1;
         end else begin // normal case
@@ -102,17 +100,17 @@ always @(posedge clk) begin
                     // do nothing, entries have higher price (bid) or lower price (ask)
                 end else if (i == insertIndex) begin
                     valid[i] <= 1;
-                    price[i] <= insertPrice;
-                    quantity[i] <= insertQuantity;
-                    orderID[i] <= insertOrderID;
-                    seqNum[i] <= insertSeqNum;
-                end else begin
+                    price[i*16 +: 16] <= insertPrice;
+                    quantity[i*16 +: 16] <= insertQuantity;
+                    orderID[i*16 +: 16] <= insertOrderID;
+                    seqNum[i*16 +: 16] <= insertSeqNum;
+                end else if (i > 0) begin // add i > 0 to prevent yosys warnings about out-of-bounds indexes in the speculatively synthesized hardware
                     // increase index by 1 for everything below the insertIndex
-                    valid[i]    <= valid[i-1];
-                    price[i]    <= price[i-1];
-                    quantity[i] <= quantity[i-1];
-                    orderID[i]  <= orderID[i-1];
-                    seqNum[i]   <= seqNum[i-1];
+                    valid[i] <= valid[i-1];
+                    price[i*16 +: 16] <= price[(i-1)*16 +: 16];
+                    quantity[i*16 +: 16] <= quantity[(i-1)*16 +: 16];
+                    orderID[i*16 +: 16] <= orderID[(i-1)*16 +: 16];
+                    seqNum[i*16 +: 16] <= seqNum[(i-1)*16 +: 16];
                     // note: book cannot be full here, so at least one empty slot exists to shift empty/garbage entries into
                 end
             end
@@ -127,10 +125,10 @@ always @(posedge clk) begin
         end else begin // non-empty book
             for (i = 0; i < N - 1; i = i + 1) begin
                 valid[i] <= valid[i+1];
-                price[i] <= price[i+1];
-                quantity[i] <= quantity[i+1];
-                orderID[i] <= orderID[i+1];
-                seqNum[i] <= seqNum[i+1];
+                price[i*16 +: 16] <= price[(i+1)*16 +: 16];
+                quantity[i*16 +: 16] <= quantity[(i+1)*16 +: 16];
+                orderID[i*16 +: 16] <= orderID[(i+1)*16 +: 16];
+                seqNum[i*16 +: 16] <= seqNum[(i+1)*16 +: 16];
             end
             valid[N-1] <= 0; // last row always has to be invalidated
         end
