@@ -27,3 +27,17 @@ a single cycle, I think it's more realistic to focus on minimizing matching time
 a matching order is trivial (one cycle/ O(1)), at the cost of slower insertion. It also seems to me that this matches the 
 industry's low-latency focus.
 Though, again due to the low number, I think it's possible to speed up the insertion with a combinational implementation.
+
+B. Order book side
+
+- Parameterize ordering of orders s.t. this single module can be used to construct both the bid and ask sides of the book.
+- Separate errors for simultaneous operation, adding when full and removing when empty. Other behavior was possible for 
+adding when full, e.g. adding only if better price. But maybe later, focus on simplicity for now.
+- Combinationally provide insertion index: low insertion cost -> good for low latency! At the cost of hardware usage.
+- Had to add a guard (i>0) in the else branch of the normal case insertion due to the peculiarities of for loops 
+in FPGA design. Because the synthesizer synthesizes all branches for the full iteration range speculatively, it throws
+warnings for out of bounds indexing that in normal programming would not occur because the out-of-bounds is not possible
+based on the runtime constraints on the insertIndex value + logic. Quite interesting.
+- Had to change my output arrays to packed vectors because apparently my synthesizer cannot synthesize arrays (an error that
+popped up while using the testbench). After this I will always check if my module is synthesizable before progressing with the 
+testbench.
