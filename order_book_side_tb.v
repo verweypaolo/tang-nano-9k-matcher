@@ -84,6 +84,29 @@ module test_order_book_side;
         end
     endtask
 
+    // reusable insertion task
+    task do_insert;
+        input [15:0] p;
+        input [15:0] q;
+        input [15:0] oid;
+        input [15:0] sn;
+        begin
+            @(posedge clk);
+            #1;
+            insertValid = 1;
+            insertPrice = p;
+            insertQuantity = q;
+            insertOrderID = oid;
+            insertSeqNum = sn;
+
+            @(posedge clk);
+            @(posedge clk);
+
+            #1;
+            insertValid = 0;
+        end
+    endtask
+
     initial begin
         $dumpfile("order_book_side_tb.vcd"); // output waveform file
         $dumpvars(0, test_order_book_side);    // 0 = dump all levels of hierarchy, starting from this module
@@ -255,6 +278,35 @@ module test_order_book_side;
                     price[3*16 +: 16], orderID[3*16 +: 16]);
         end else begin
             $display("PASS: duplicate price correctly resolved by arrival order (orderID 3 kept priority over orderID 4)");
+        end
+        print_book;
+
+
+        // Test 6a: fill the remaining 4 slots
+        do_insert(16'h0028, 16'h0004, 16'h0005, 16'h0004); // price 40
+        do_insert(16'h001E, 16'h0002, 16'h0006, 16'h0005); // price 30
+        do_insert(16'h0014, 16'h0006, 16'h0007, 16'h0006); // price 20
+        do_insert(16'h000A, 16'h0001, 16'h0008, 16'h0007); // price 10
+
+        if (valid !== 8'b11111111) begin
+            $display("FAIL: valid mask = %b, expected full book 8'b11111111 after filling", valid);
+        end else begin
+            $display("PASS: book correctly filled to N=8 entries");
+        end
+        print_book;
+
+        // Test 6b: insert into a full book should be rejected and flagged
+        do_insert(16'h0001, 16'h0001, 16'h0009, 16'h0008); // arbitrary — should never be accepted
+
+        if (insertFullError !== 1) begin
+            $display("FAIL: insertFullError not asserted when inserting into a full book");
+        end else if (valid !== 8'b11111111) begin
+            $display("FAIL: valid mask changed despite full-book rejection. valid=%b", valid);
+        end else if (orderID[7*16 +: 16] !== 16'h0008) begin
+            $display("FAIL: slot 7 (last legitimate entry) was disturbed by the rejected insert. orderID=%h",
+                    orderID[7*16 +: 16]);
+        end else begin
+            $display("PASS: insertFullError correctly asserted, book state unchanged");
         end
         print_book;
 
