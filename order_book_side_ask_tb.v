@@ -352,13 +352,13 @@ module test_order_book_side_ask;
             $display("FAIL: valid mask = %b, expected full 8'b11111111 after filling insert", valid);
         end else if (price[4*16 +: 16] !== 16'h0046 || orderID[4*16 +: 16] !== 16'h0009) begin
             $display("FAIL: slot 4 after insert = price=%h orderID=%h, expected price=0x46 orderID=0x9",
-                    price[2*16 +: 16], orderID[2*16 +: 16]);
+                    price[4*16 +: 16], orderID[4*16 +: 16]);
         end else begin
             $display("PASS: insert correctly filled last empty slot");
         end
         print_book;
 
-        do_remove; // removes slot0 (75, id3) — book back to 7/8, one empty slot again
+        do_remove; // removes slot0 (20, id7) — book back to 7/8, one empty slot again
 
         do_insert(16'h003C, 16'h0003, 16'h000A, 16'h0009); // price 60 — fills the newly-opened slot
 
