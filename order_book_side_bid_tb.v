@@ -344,6 +344,7 @@ module test_order_book_side_bid;
         end
         print_book;
 
+
         // Test 8: interleaved insert/remove — book should stay correctly sorted throughout
         do_insert(16'h0046, 16'h0002, 16'h0009, 16'h0008); // price 70 — fills the last empty slot
 

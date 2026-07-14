@@ -206,11 +206,11 @@ module test_order_book_side_ask;
         print_book;
 
 
-        // Test 4a: insert a second entry (lower price - should land after slot 0)
+        // Test 4a: insert a second entry (lower price - should land at slot 0, on top)
         @(posedge clk);
         #1;
         insertValid = 1;
-        insertPrice = 16'h0032;      // 50 — lower price, should sort after 100
+        insertPrice = 16'h0032;      // 50 — lower price, should sort before 100
         insertQuantity = 16'h0005;
         insertOrderID = 16'h0002;
         insertSeqNum = 16'h0001;
@@ -223,11 +223,11 @@ module test_order_book_side_ask;
 
         if (valid !== 8'b00000011) begin
             $display("FAIL: valid mask = %b, expected 8'b00000011 after second insert", valid);
-        end else if (price[0*16 +: 16] !== 16'h0064 || price[1*16 +: 16] !== 16'h0032) begin
+        end else if (price[0*16 +: 16] !== 16'h0032 || price[1*16 +: 16] !== 16'h0064) begin
             $display("FAIL: sort order incorrect after second insert. slot0=%h slot1=%h",
                     price[0*16 +: 16], price[1*16 +: 16]);
         end else begin
-            $display("PASS: second insert correctly appended after slot 0");
+            $display("PASS: second insert correctly added to slot 0");
         end
         print_book;
 
@@ -248,14 +248,14 @@ module test_order_book_side_ask;
 
         if (valid !== 8'b00000111) begin
             $display("FAIL: valid mask = %b, expected 8'b00000111 after middle insert", valid);
-        end else if (price[0*16 +: 16] !== 16'h0064 || orderID[0*16 +: 16] !== 16'h0001) begin
+        end else if (price[0*16 +: 16] !== 16'h0032 || orderID[0*16 +: 16] !== 16'h0002) begin
             $display("FAIL: slot 0 disturbed by middle insert. price=%h orderID=%h",
                     price[0*16 +: 16], orderID[0*16 +: 16]);
         end else if (price[1*16 +: 16] !== 16'h004B || orderID[1*16 +: 16] !== 16'h0003) begin
             $display("FAIL: new entry did not land correctly at slot 1. price=%h orderID=%h",
                     price[1*16 +: 16], orderID[1*16 +: 16]);
-        end else if (price[2*16 +: 16] !== 16'h0032 || orderID[2*16 +: 16] !== 16'h0002) begin
-            $display("FAIL: original second entry did not shift correctly to slot 2. price=%h orderID=%h",
+        end else if (price[2*16 +: 16] !== 16'h0064 || orderID[2*16 +: 16] !== 16'h0001) begin
+            $display("FAIL: original first entry did not shift correctly to slot 2. price=%h orderID=%h",
                     price[2*16 +: 16], orderID[2*16 +: 16]);
         end else begin
             $display("PASS: middle insert correctly shifted existing entry and landed at slot 1");
@@ -280,7 +280,7 @@ module test_order_book_side_ask;
 
         if (valid !== 8'b00001111) begin
             $display("FAIL: valid mask = %b, expected 8'b00001111 after duplicate-price insert", valid);
-        end else if (price[0*16 +: 16] !== 16'h0064 || orderID[0*16 +: 16] !== 16'h0001) begin
+        end else if (price[0*16 +: 16] !== 16'h0032 || orderID[0*16 +: 16] !== 16'h0002) begin
             $display("FAIL: slot 0 disturbed by duplicate-price insert");
         end else if (price[1*16 +: 16] !== 16'h004B || orderID[1*16 +: 16] !== 16'h0003) begin
             $display("FAIL: original price-75 entry (orderID 3) lost priority — found price=%h orderID=%h at slot 1",
@@ -288,8 +288,8 @@ module test_order_book_side_ask;
         end else if (price[2*16 +: 16] !== 16'h004B || orderID[2*16 +: 16] !== 16'h0004) begin
             $display("FAIL: new price-75 entry (orderID 4) did not land at slot 2. price=%h orderID=%h",
                     price[2*16 +: 16], orderID[2*16 +: 16]);
-        end else if (price[3*16 +: 16] !== 16'h0032 || orderID[3*16 +: 16] !== 16'h0002) begin
-            $display("FAIL: price-50 entry (orderID 2) did not shift correctly to slot 3. price=%h orderID=%h",
+        end else if (price[3*16 +: 16] !== 16'h0064 || orderID[3*16 +: 16] !== 16'h0001) begin
+            $display("FAIL: price-100 entry (orderID 1) did not shift correctly to slot 3. price=%h orderID=%h",
                     price[3*16 +: 16], orderID[3*16 +: 16]);
         end else begin
             $display("PASS: duplicate price correctly resolved by arrival order (orderID 3 kept priority over orderID 4)");
@@ -317,8 +317,8 @@ module test_order_book_side_ask;
             $display("FAIL: insertFullError not asserted when inserting into a full book");
         end else if (valid !== 8'b11111111) begin
             $display("FAIL: valid mask changed despite full-book rejection. valid=%b", valid);
-        end else if (orderID[7*16 +: 16] !== 16'h0008) begin
-            $display("FAIL: slot 7 (last legitimate entry) was disturbed by the rejected insert. orderID=%h",
+        end else if (orderID[7*16 +: 16] !== 16'h0001) begin
+            $display("FAIL: slot 7 was disturbed by the rejected insert. orderID=%h",
                     orderID[7*16 +: 16]);
         end else begin
             $display("PASS: insertFullError correctly asserted, book state unchanged");
@@ -331,11 +331,11 @@ module test_order_book_side_ask;
 
         if (valid !== 8'b01111111) begin
             $display("FAIL: valid mask = %b, expected 8'b01111111 after first removal", valid);
-        end else if (price[0*16 +: 16] !== 16'h004B || orderID[0*16 +: 16] !== 16'h0003) begin
-            $display("FAIL: slot 0 after removal = price=%h orderID=%h, expected price=0x4B orderID=0x3",
+        end else if (price[0*16 +: 16] !== 16'h0014 || orderID[0*16 +: 16] !== 16'h0007) begin
+            $display("FAIL: slot 0 after removal = price=%h orderID=%h, expected price=0x14 orderID=0x7",
                     price[0*16 +: 16], orderID[0*16 +: 16]);
-        end else if (price[6*16 +: 16] !== 16'h000A || orderID[6*16 +: 16] !== 16'h0008) begin
-            $display("FAIL: slot 6 after shift = price=%h orderID=%h, expected price=0x0A orderID=0x8",
+        end else if (price[6*16 +: 16] !== 16'h0064 || orderID[6*16 +: 16] !== 16'h0001) begin
+            $display("FAIL: slot 6 after shift = price=%h orderID=%h, expected price=0x64 orderID=0x1",
                     price[6*16 +: 16], orderID[6*16 +: 16]);
         end else if (insertFullError === 1 || simultaneousOpError === 1 || removeEmptyError === 1) begin
             $display("FAIL: an error flag incorrectly asserted during valid removal");
@@ -344,13 +344,14 @@ module test_order_book_side_ask;
         end
         print_book;
 
+
         // Test 8: interleaved insert/remove — book should stay correctly sorted throughout
         do_insert(16'h0046, 16'h0002, 16'h0009, 16'h0008); // price 70 — fills the last empty slot
 
         if (valid !== 8'b11111111) begin
             $display("FAIL: valid mask = %b, expected full 8'b11111111 after filling insert", valid);
-        end else if (price[2*16 +: 16] !== 16'h0046 || orderID[2*16 +: 16] !== 16'h0009) begin
-            $display("FAIL: slot 2 after insert = price=%h orderID=%h, expected price=0x46 orderID=0x9",
+        end else if (price[4*16 +: 16] !== 16'h0046 || orderID[4*16 +: 16] !== 16'h0009) begin
+            $display("FAIL: slot 4 after insert = price=%h orderID=%h, expected price=0x46 orderID=0x9",
                     price[2*16 +: 16], orderID[2*16 +: 16]);
         end else begin
             $display("PASS: insert correctly filled last empty slot");
