@@ -1,7 +1,7 @@
 `default_nettype none
 `timescale 1ns/1ps
 
-module test_obs;
+module test_order_book_side;
     
     // parameters
     localparam N = 8;
@@ -64,6 +64,41 @@ module test_obs;
         insertQuantity = 0;
         insertOrderID = 0;
         insertSeqNum = 0;
+    end
+
+    initial begin
+        $dumpfile("order_book_side_tb.vcd"); // output waveform file
+        $dumpvars(0, test_order_book_side);    // 0 = dump all levels of hierarchy, starting from this module
+    end
+
+    initial begin
+        @(posedge clk); // let settle
+
+
+        // Test 1: simultaneous insert and remove - should be rejected and flagged
+        insertValid = 1;
+        removeValid = 1;
+        insertPrice = 16'h0064;
+        insertQuantity = 16'h000A;
+        insertOrderID = 16'h0001;
+        insertSeqNum = 16'h0000;
+
+        @(posedge clk); // let edge register
+        @(posedge clk); // let flag assert
+
+        // reset
+        insertValid = 0;
+        removeValid = 0;
+
+        if (simultaneousOpError !== 1) begin
+            $display("FAIL: simultaneousOpError not asserted when insert+remove fired together");
+        end else if (valid !== 8'b0) begin
+            $display("FAIL: book state changed despite simultaneous op rejection. valid=%b", valid);
+        end else begin
+            $display("PASS: simultaneousOpError correctly asserted, book state unchanged");
+        end
+
+        $finish;
     end
 
 endmodule
