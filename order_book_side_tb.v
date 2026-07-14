@@ -66,6 +66,24 @@ module test_order_book_side;
         insertSeqNum = 0;
     end
 
+    // reusable printing task
+    task print_book;
+        integer k;
+        begin
+            $display("---- Book contents ----");
+            for (k = 0; k < N; k = k + 1) begin
+                if (valid[k]) begin
+                    $display("  slot %0d: price=%h qty=%h orderID=%h seqNum=%h",
+                            k, price[k*16 +: 16], quantity[k*16 +: 16],
+                            orderID[k*16 +: 16], seqNum[k*16 +: 16]);
+                end else begin
+                    $display("  slot %0d: (empty)", k);
+                end
+            end
+            $display("------------------------");
+        end
+    endtask
+
     initial begin
         $dumpfile("order_book_side_tb.vcd"); // output waveform file
         $dumpvars(0, test_order_book_side);    // 0 = dump all levels of hierarchy, starting from this module
@@ -120,6 +138,36 @@ module test_order_book_side;
         end else begin
             $display("PASS: removeEmptyError correctly asserted, book state unchanged");
         end
+
+
+        // Test 3: insert into empty book
+        @(posedge clk);
+        #1;
+        insertValid = 1;
+        insertPrice = 16'h0064;
+        insertQuantity = 16'h000A;
+        insertOrderID = 16'h0001;
+        insertSeqNum = 16'h0000;
+
+        @(posedge clk); // let edge register
+        @(posedge clk); // insertion
+
+        #1;
+        insertValid = 0;
+
+        if (valid !== 8'b00000001) begin
+            $display("FAIL: valid mask = %b, expected 8'b00000001 after first insert", valid);
+        end else if (price[0*16 +: 16] !== 16'h0064 || quantity[0*16 +: 16] !== 16'h000A
+                    || orderID[0*16 +: 16] !== 16'h0001 || seqNum[0*16 +: 16] !== 16'h0000) begin
+            $display("FAIL: slot 0 fields incorrect after empty-book insert");
+        end else if (insertFullError === 1 || removeEmptyError === 1 || simultaneousOpError === 1) begin
+            $display("FAIL: an error flag was incorrectly asserted during a valid insert");
+        end else begin
+            $display("PASS: insert into empty book landed correctly in slot 0");
+        end
+        
+        print_book;
+
 
         $finish;
     end
