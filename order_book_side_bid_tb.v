@@ -1,7 +1,7 @@
 `default_nettype none
 `timescale 1ns/1ps
 
-module test_order_book_side;
+module test_order_book_side_bid;
     
     // parameters
     localparam N = 8;
@@ -123,8 +123,8 @@ module test_order_book_side;
     endtask
 
     initial begin
-        $dumpfile("order_book_side_tb.vcd"); // output waveform file
-        $dumpvars(0, test_order_book_side);    // 0 = dump all levels of hierarchy, starting from this module
+        $dumpfile("order_book_side_bid_tb.vcd"); // output waveform file
+        $dumpvars(0, test_order_book_side_bid);    // 0 = dump all levels of hierarchy, starting from this module
     end
 
     initial begin
