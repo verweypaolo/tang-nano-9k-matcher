@@ -121,7 +121,7 @@ localparam ME_STATE_IDLE = 0;
 localparam ME_STATE_DECIDE = 1;
 localparam ME_STATE_MATCH_LOOP = 2;
 localparam ME_STATE_REST = 3;
-localparam ME_STATE_REJECT = 4;
+localparam ME_STATE_REST_CONFIRM = 4;
 
 localparam MSG_TYPE_NEW_ORDER = 8'h01;
 localparam MSG_SIDE_BUY = 8'h00;
@@ -142,6 +142,12 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
+    // default: all pulses low unless explicitly asserted below
+    insertValidBid <= 0;
+    removeValidBid <= 0;
+    insertValidAsk <= 0;
+    removeValidAsk <= 0;
+
     case (meState)
         ME_STATE_IDLE: begin
             if (messageReadyEdge) begin
@@ -173,6 +179,26 @@ always @(posedge clk) begin
                 wrongMsgSide <= 1;
                 meState <= ME_STATE_IDLE;
             end
+        end
+        ME_STATE_MATCH_LOOP: begin
+            // already know there's a match
+            // also disregarding quantity so only pop 1 order and move on
+            if (side == MSG_SIDE_BUY) begin
+                removeValidAsk <= 1;
+            end else begin // can use else here because invalid side has been covered before
+                removeValidBid <= 1;
+            end
+            orderFilled <= 1;
+            globalSeqNum <= globalSeqNum + 1;
+            meState <= ME_STATE_IDLE;
+        end
+        ME_STATE_REST: begin
+            if (side == MSG_SIDE_BUY) begin
+                insertValidBid;
+            end else begin
+                insertValidAsk;
+            end
+            meState <= ME_STATE_REST_CONFIRM; // need this state as insertion errors only asserted on next cycle
         end
     endcase
 end
