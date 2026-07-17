@@ -12,9 +12,13 @@ module matching_engine
 (
     input clk,
     input uart_rx_line,
+
     output reg orderFilled,
     output reg orderResting,
-    output reg orderRejected
+    output reg orderRejected,
+
+    output reg wrongMsgType,
+    output reg wrongMsgSide
 );
 
 
@@ -120,6 +124,8 @@ localparam ME_STATE_REST = 3;
 localparam ME_STATE_REJECT = 4;
 
 localparam MSG_TYPE_NEW_ORDER = 8'h01;
+localparam MSG_SIDE_BUY = 8'h00;
+localparam MSG_SIDE_SELL = 8'h01;
 
 initial begin
     insertValidBid = 0;
@@ -140,9 +146,32 @@ always @(posedge clk) begin
         ME_STATE_IDLE: begin
             if (messageReadyEdge) begin
                 orderFilled <= 0;
-                orderRested <= 0;
+                orderResting <= 0;
                 orderRejected <= 0;
+                wrongMsgType <= 0;
+                wrongMsgSide <= 0;
                 meState <= ME_STATE_DECIDE;
+            end
+        end
+        ME_STATE_DECIDE: begin
+            if (msgType != MSG_TYPE_NEW_ORDER) begin
+                wrongMsgType <= 1;
+                meState <= ME_STATE_IDLE;
+            end else if (side == MSG_SIDE_BUY) begin
+                if (validAskBook[0] && price >= priceAskBook[15:0]) begin
+                    meState <= ME_STATE_MATCH_LOOP; // match
+                end else begin
+                    meState <= ME_STATE_REST; // no match, try to rest
+                end
+            end else if (side == MSG_SIDE_SELL) begin
+                if (validBidBook[0] && price <= priceBidBook[15:0]) begin
+                    meState <= ME_STATE_MATCH_LOOP;
+                end else begin
+                    meState <= ME_STATE_REST;
+                end
+            end else begin
+                wrongMsgSide <= 1;
+                meState <= ME_STATE_IDLE;
             end
         end
     endcase
