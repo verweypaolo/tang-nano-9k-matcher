@@ -16,7 +16,7 @@ module order_book_side
     input removeValid, // remove slot 0 on pulse
 
     // order book regs
-    output reg [7:0] valid, // packed vectors
+    output reg [N-1:0] valid, // packed vectors
     output reg [16*N-1:0] price,
     output reg [16*N-1:0] quantity,
     output reg [16*N-1:0] orderID,
