@@ -12,9 +12,9 @@ module matching_engine
 (
     input clk,
     input uart_rx_line,
-    output orderFilled,
-    output orderResting,
-    output orderRejected
+    output reg orderFilled,
+    output reg orderResting,
+    output reg orderRejected
 );
 
 
@@ -107,6 +107,45 @@ order_book_side
 );
 
 
+// messageReady edge
+reg messageReadyPrev;
+wire messageReadyEdge = messageReady & !messageReadyPrev;
 
+reg [3:0] meState;
+
+localparam ME_STATE_IDLE = 0;
+localparam ME_STATE_DECIDE = 1;
+localparam ME_STATE_MATCH_LOOP = 2;
+localparam ME_STATE_REST = 3;
+localparam ME_STATE_REJECT = 4;
+
+localparam MSG_TYPE_NEW_ORDER = 8'h01;
+
+initial begin
+    insertValidBid = 0;
+    removeValidBid = 0;
+    insertValidAsk = 0;
+    removeValidAsk = 0;
+    globalSeqNum = 0;
+    messageReadyPrev = 0;
+    meState = 0;
+end
+
+always @(posedge clk) begin
+    messageReadyPrev <= messageReady;
+end
+
+always @(posedge clk) begin
+    case (meState)
+        ME_STATE_IDLE: begin
+            if (messageReadyEdge) begin
+                orderFilled <= 0;
+                orderRested <= 0;
+                orderRejected <= 0;
+                meState <= ME_STATE_DECIDE;
+            end
+        end
+    endcase
+end
 
 endmodule
