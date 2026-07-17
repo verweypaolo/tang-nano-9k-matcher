@@ -11,7 +11,10 @@ module matching_engine
 )
 (
     input clk,
-    input uart_rx_line
+    input uart_rx_line,
+    output orderFilled,
+    output orderResting,
+    output orderRejected
 );
 
 
@@ -102,6 +105,7 @@ order_book_side
     .insertFullError(insertFullErrorAsk),
     .removeEmptyError(removeEmptyErrorAsk)
 );
+
 
 
 
