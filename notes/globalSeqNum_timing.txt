@@ -1,0 +1,6 @@
+If resting an order globalSeqNum is incremented in the REST_CONFIRM (success) state.
+This means it is updated the cycle after the insertion edge triggers in order_book_side.
+=> it uses the old globalSeqNum
+
+But this actually works, because after filling or resting an order the globalSeqNum is incremented for the NEXT
+order fill or resting (counter starts at 0). So current implementation should work!

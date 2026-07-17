@@ -194,11 +194,20 @@ always @(posedge clk) begin
         end
         ME_STATE_REST: begin
             if (side == MSG_SIDE_BUY) begin
-                insertValidBid;
+                insertValidBid <= 1;
             end else begin
-                insertValidAsk;
+                insertValidAsk <= 1;
             end
             meState <= ME_STATE_REST_CONFIRM; // need this state as insertion errors only asserted on next cycle
+        end
+        ME_STATE_REST_CONFIRM: begin
+            if ((side == MSG_SIDE_BUY && insertFullErrorBid) || (side == MSG_SIDE_SELL && insertFullErrorAsk)) begin
+                orderRejected <= 1;
+            end else begin
+                orderResting <= 1;
+                globalSeqNum <= globalSeqNum + 1;
+            end
+            meState <= ME_STATE_IDLE;
         end
     endcase
 end
