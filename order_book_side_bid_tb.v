@@ -133,6 +133,23 @@ module test_order_book_side_bid;
         end
     endtask
 
+    // reusable reduction task
+    task do_reduce;
+        input [15:0] amt;
+        begin
+            @(posedge clk);
+            #1;
+            reduceValid = 1;
+            reduceAmount = amt;
+
+            @(posedge clk);
+            @(posedge clk);
+
+            #1;
+            reduceValid = 0;
+        end
+    endtask
+
     initial begin
         $dumpfile("order_book_side_bid_tb.vcd"); // output waveform file
         $dumpvars(0, test_order_book_side_bid);    // 0 = dump all levels of hierarchy, starting from this module
@@ -415,6 +432,85 @@ module test_order_book_side_bid;
             $display("FAIL: valid mask changed despite empty-book removal rejection. valid=%b", valid);
         end else begin
             $display("PASS: removeEmptyError correctly asserted after full drain — empty/full transition logic confirmed");
+        end
+        print_book;
+
+        // Test 10: reduce on an empty book should be rejected and flagged
+        do_reduce(16'h0005);
+
+        if (reduceEmptyError !== 1) begin
+            $display("FAIL: reduceEmptyError not asserted when reducing an empty book");
+        end else if (valid !== 8'b0) begin
+            $display("FAIL: book state changed despite empty-book reduce rejection. valid=%b", valid);
+        end else begin
+            $display("PASS: reduceEmptyError correctly asserted, book state unchanged");
+        end
+        print_book;
+
+
+        // Test 11: insert one order, then partially reduce it
+        do_insert(16'h0064, 16'h0014, 16'h000B, 16'h000A); // price 100, qty 20
+
+        do_reduce(16'h0005); // reduce by 5 -> expect qty 15
+
+        if (valid !== 8'b00000001) begin
+            $display("FAIL: valid mask = %b, expected 8'b00000001 after insert+reduce", valid);
+        end else if (quantity[0*16 +: 16] !== 16'h000F) begin
+            $display("FAIL: slot 0 quantity = %h, expected 0x000F (15) after partial reduce", quantity[0*16 +: 16]);
+        end else if (price[0*16 +: 16] !== 16'h0064 || orderID[0*16 +: 16] !== 16'h000B) begin
+            $display("FAIL: slot 0 price/orderID disturbed by reduce. price=%h orderID=%h",
+                    price[0*16 +: 16], orderID[0*16 +: 16]);
+        end else if (overReduceError === 1 || reduceEmptyError === 1) begin
+            $display("FAIL: an error flag incorrectly asserted during a valid partial reduce");
+        end else begin
+            $display("PASS: partial reduce correctly decremented quantity, other fields untouched");
+        end
+        print_book;
+
+
+        // Test 12: over-reduce (amount greater than current quantity) should be rejected and flagged
+        do_reduce(16'h0064); // far more than the current 15
+
+        if (overReduceError !== 1) begin
+            $display("FAIL: overReduceError not asserted when reduceAmount exceeds quantity");
+        end else if (quantity[0*16 +: 16] !== 16'h000F) begin
+            $display("FAIL: quantity changed despite over-reduce rejection. quantity=%h", quantity[0*16 +: 16]);
+        end else begin
+            $display("PASS: overReduceError correctly asserted, quantity unchanged");
+        end
+        print_book;
+
+
+        // Test 13: exact-match reduce (reduceAmount == quantity) should ALSO be rejected,
+        // per the design decision that exact-consumption belongs to removeValid, not reduceValid
+        do_reduce(16'h000F); // exactly equal to current quantity (15)
+
+        if (overReduceError !== 1) begin
+            $display("FAIL: overReduceError not asserted when reduceAmount exactly equals quantity");
+        end else if (quantity[0*16 +: 16] !== 16'h000F) begin
+            $display("FAIL: quantity changed despite exact-match reduce rejection. quantity=%h", quantity[0*16 +: 16]);
+        end else begin
+            $display("PASS: exact-match reduce correctly rejected via overReduceError (boundary case)");
+        end
+        print_book;
+
+
+        // Test 14: reduce again, then insert a second order — confirm reduced value persists
+        // and is not disturbed by an unrelated insert
+        do_reduce(16'h0005); // 15 -> 10
+
+        do_insert(16'h0032, 16'h0008, 16'h000C, 16'h000B); // price 50, lands after 100 on bid side
+
+        if (valid !== 8'b00000011) begin
+            $display("FAIL: valid mask = %b, expected 8'b00000011 after second reduce + new insert", valid);
+        end else if (quantity[0*16 +: 16] !== 16'h000A || orderID[0*16 +: 16] !== 16'h000B) begin
+            $display("FAIL: slot 0 disturbed by unrelated insert. quantity=%h orderID=%h",
+                    quantity[0*16 +: 16], orderID[0*16 +: 16]);
+        end else if (price[1*16 +: 16] !== 16'h0032 || orderID[1*16 +: 16] !== 16'h000C) begin
+            $display("FAIL: new order did not land correctly at slot 1. price=%h orderID=%h",
+                    price[1*16 +: 16], orderID[1*16 +: 16]);
+        end else begin
+            $display("PASS: reduced quantity persisted correctly through an unrelated insert");
         end
         print_book;
 
