@@ -147,7 +147,8 @@ localparam ME_STATE_DECIDE = 1;
 localparam ME_STATE_MATCH_LOOP = 2;
 localparam ME_STATE_MATCH_LOOP_WAIT = 3;
 localparam ME_STATE_REST = 4;
-localparam ME_STATE_REST_CONFIRM = 5;
+localparam ME_STATE_REST_WAIT = 5;
+localparam ME_STATE_REST_CONFIRM = 6;
 
 
 initial begin
@@ -276,7 +277,12 @@ always @(posedge clk) begin
             end else begin
                 insertValidAsk <= 1;
             end
-            meState <= ME_STATE_REST_CONFIRM; // need this state as insertion errors only asserted on next cycle
+            meState <= ME_STATE_REST_WAIT; // need this state as insertion errors only asserted on next cycle
+        end
+        ME_STATE_REST_WAIT: begin
+            // Need this cycle wait to allow the order book instances to update the error flags read in the 
+            // REST_CONFIRM state, otherwise pre update stale values read.
+            meState <= ME_STATE_REST_CONFIRM;
         end
         ME_STATE_REST_CONFIRM: begin
             if ((side == MSG_SIDE_BUY && insertFullErrorBid) || (side == MSG_SIDE_SELL && insertFullErrorAsk)) begin
