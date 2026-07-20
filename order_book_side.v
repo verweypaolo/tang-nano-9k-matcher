@@ -15,6 +15,9 @@ module order_book_side
 
     input removeValid, // remove slot 0 on pulse
 
+    input reduceValid,
+    input [15:0] reduceAmount, // amount to reduce, same width as quantity reg
+
     // order book regs
     output reg [N-1:0] valid, // packed vectors
     output reg [16*N-1:0] price,
@@ -24,7 +27,8 @@ module order_book_side
 
     output reg simultaneousOpError,
     output reg insertFullError,
-    output reg removeEmptyError
+    output reg removeEmptyError,
+    output reg overReduceError
 );
 
 // insertion edge
@@ -35,8 +39,12 @@ wire insertValidEdge = insertValid & !insertValidPrev;
 reg removeValidPrev;
 wire removeValidEdge = removeValid & !removeValidPrev;
 
+// reduction edge
+reg reduceValidPrev;
+wire reduceValidEdge = reduceValid & !reduceValidPrev;
+
 // edge cases
-wire bookEmpty = (valid == 8'b0);
+wire bookEmpty = (valid == 0);
 wire bookFull = &valid; // AND reduction
 
 // insertion index
@@ -64,6 +72,7 @@ initial begin
     simultaneousOpError = 0;
     insertFullError = 0;
     removeEmptyError = 0;
+    overReduceError = 0;
     price = 0;
     quantity = 0;
     orderID = 0;
@@ -73,10 +82,11 @@ end
 always @(posedge clk) begin
     insertValidPrev <= insertValid;
     removeValidPrev <= removeValid;
+    reduceValidPrev <= reduceValid;
 end
 
 always @(posedge clk) begin
-    if (insertValidEdge && removeValidEdge) begin
+    if ((insertValidEdge && removeValidEdge) || (insertValidEdge && reduceValidEdge) || (removeValidEdge && reduceValidEdge)) begin
         simultaneousOpError <= 1;
         // don't do anything else: safest, though can design a tie break here
     end
@@ -84,6 +94,7 @@ always @(posedge clk) begin
         simultaneousOpError <= 0;
         insertFullError <= 0;
         removeEmptyError <= 0;
+        overReduceError <= 0;
 
         if (bookEmpty) begin
             valid[0] <= 1;
@@ -120,6 +131,7 @@ always @(posedge clk) begin
         simultaneousOpError <= 0;
         insertFullError <= 0;
         removeEmptyError <= 0;
+        overReduceError <= 0;
 
         if (bookEmpty) begin
             removeEmptyError <= 1;
@@ -132,6 +144,17 @@ always @(posedge clk) begin
                 seqNum[i*16 +: 16] <= seqNum[(i+1)*16 +: 16];
             end
             valid[N-1] <= 0; // last row always has to be invalidated
+        end
+    end else if (reduceValidEdge) begin
+        simultaneousOpError <= 0;
+        insertFullError <= 0;
+        removeEmptyError <= 0;
+        overReduceError <= 0;
+
+        if (reduceAmount > quantity[0*16 +: 16]) begin // shouldn't happen based on matching engine logic, but good guard
+            overReduceError <= 1;
+        end else begin
+            quantity[0*16 +: 16] <= quantity[0*16 +: 16] - reduceAmount; // only act on top order (like always)
         end
     end
 end
