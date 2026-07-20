@@ -30,6 +30,7 @@ module test_order_book_side_bid;
     wire simultaneousOpError;
     wire insertFullError;
     wire removeEmptyError;
+    wire reduceEmptyError;
     wire overReduceError;
 
 
@@ -56,6 +57,7 @@ module test_order_book_side_bid;
         .simultaneousOpError(simultaneousOpError),
         .insertFullError(insertFullError),
         .removeEmptyError(removeEmptyError),
+        .reduceEmptyError(reduceEmptyError),
         .overReduceError(overReduceError)
     );
 

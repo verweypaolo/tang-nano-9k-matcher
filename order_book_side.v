@@ -28,6 +28,7 @@ module order_book_side
     output reg simultaneousOpError,
     output reg insertFullError,
     output reg removeEmptyError,
+    output reg reduceEmptyError,
     output reg overReduceError
 );
 
@@ -72,6 +73,7 @@ initial begin
     simultaneousOpError = 0;
     insertFullError = 0;
     removeEmptyError = 0;
+    reduceEmptyError = 0;
     overReduceError = 0;
     price = 0;
     quantity = 0;
@@ -95,6 +97,7 @@ always @(posedge clk) begin
         insertFullError <= 0;
         removeEmptyError <= 0;
         overReduceError <= 0;
+        reduceEmptyError <= 0;
 
         if (bookEmpty) begin
             valid[0] <= 1;
@@ -132,6 +135,7 @@ always @(posedge clk) begin
         insertFullError <= 0;
         removeEmptyError <= 0;
         overReduceError <= 0;
+        reduceEmptyError <= 0;
 
         if (bookEmpty) begin
             removeEmptyError <= 1;
@@ -150,8 +154,12 @@ always @(posedge clk) begin
         insertFullError <= 0;
         removeEmptyError <= 0;
         overReduceError <= 0;
+        reduceEmptyError <= 0;
 
-        if (reduceAmount >= quantity[0*16 +: 16]) begin // shouldn't happen based on matching engine logic, but good guard
+        if (bookEmpty) begin
+            reduceEmptyError <= 1;
+        end else if (reduceAmount >= quantity[0*16 +: 16]) begin 
+            // shouldn't happen based on matching engine logic, but good guard
             overReduceError <= 1;
         end else begin
             quantity[0*16 +: 16] <= quantity[0*16 +: 16] - reduceAmount; // only act on top order (like always)
