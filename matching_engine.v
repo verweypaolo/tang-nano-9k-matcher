@@ -29,21 +29,26 @@ wire [7:0] msgType, side;
 wire [15:0] orderID, price, quantity;
 
 // bid book outputs
-wire simultaneousOpErrorBid, insertFullErrorBid, removeEmptyErrorBid;
+wire simultaneousOpErrorBid, insertFullErrorBid, removeEmptyErrorBid, reduceEmptyErrorBid, overReduceErrorBid;
 wire [N-1:0] validBidBook;
 wire [16*N-1:0] orderIDBidBook, priceBidBook, quantityBidBook, seqNumBidBook;
 
 // ask book outputs
-wire simultaneousOpErrorAsk, insertFullErrorAsk, removeEmptyErrorAsk;
+wire simultaneousOpErrorAsk, insertFullErrorAsk, removeEmptyErrorAsk, reduceEmptyErrorAsk, overReduceErrorAsk;
 wire [N-1:0] validAskBook;
 wire [16*N-1:0] orderIDAskBook, priceAskBook, quantityAskBook, seqNumAskBook;
 
 // bid/ask book triggers
 reg insertValidBid, removeValidBid;
 reg insertValidAsk, removeValidAsk;
+reg reduceValidBid, reduceValidAsk;
+reg [15:0] reduceAmountBid, reduceAmountAsk;
 
 reg [15:0] globalSeqNum; // increment once per accepted NEW_ORDER
+reg [15:0] remainingQuantity;
+reg [3:0] matchLoopCount;
 
+localparam MATCH_LOOP_MAX = N;
 
 // instantiate submodules
 message_rx
@@ -74,10 +79,12 @@ order_book_side
     .clk(clk),
     .insertValid(insertValidBid),
     .insertPrice(price),
-    .insertQuantity(quantity),
+    .insertQuantity(remainingQuantity),
     .insertOrderID(orderID),
     .insertSeqNum(globalSeqNum),
     .removeValid(removeValidBid),
+    .reduceValid(reduceValidBid),
+    .reduceAmount(reduceAmountBid),
     .valid(validBidBook),
     .price(priceBidBook),
     .quantity(quantityBidBook),
@@ -85,7 +92,9 @@ order_book_side
     .seqNum(seqNumBidBook),
     .simultaneousOpError(simultaneousOpErrorBid),
     .insertFullError(insertFullErrorBid),
-    .removeEmptyError(removeEmptyErrorBid)
+    .removeEmptyError(removeEmptyErrorBid),
+    .reduceEmptyError(reduceEmptyErrorBid),
+    .overReduceError(overReduceErrorBid)
 );
 
 order_book_side
@@ -96,10 +105,12 @@ order_book_side
     .clk(clk),
     .insertValid(insertValidAsk),
     .insertPrice(price),
-    .insertQuantity(quantity),
+    .insertQuantity(remainingQuantity),
     .insertOrderID(orderID),
     .insertSeqNum(globalSeqNum),
     .removeValid(removeValidAsk),
+    .reduceValid(reduceValidAsk),
+    .reduceAmount(reduceAmountAsk),
     .valid(validAskBook),
     .price(priceAskBook),
     .quantity(quantityAskBook),
@@ -107,7 +118,9 @@ order_book_side
     .seqNum(seqNumAskBook),
     .simultaneousOpError(simultaneousOpErrorAsk),
     .insertFullError(insertFullErrorAsk),
-    .removeEmptyError(removeEmptyErrorAsk)
+    .removeEmptyError(removeEmptyErrorAsk),
+    .reduceEmptyError(reduceEmptyErrorAsk),
+    .overReduceError(overReduceErrorAsk)
 );
 
 
@@ -132,6 +145,12 @@ initial begin
     removeValidBid = 0;
     insertValidAsk = 0;
     removeValidAsk = 0;
+    reduceValidBid = 0;
+    reduceValidAsk = 0;
+    reduceAmountBid = 0;
+    reduceAmountAsk = 0;
+    remainingQuantity = 0;
+    matchLoopCount = 0;
     globalSeqNum = 0;
     messageReadyPrev = 0;
     meState = 0;
@@ -147,6 +166,8 @@ always @(posedge clk) begin
     removeValidBid <= 0;
     insertValidAsk <= 0;
     removeValidAsk <= 0;
+    reduceValidBid <= 0;
+    reduceValidAsk <= 0;
 
     case (meState)
         ME_STATE_IDLE: begin
