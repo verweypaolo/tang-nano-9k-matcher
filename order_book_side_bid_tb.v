@@ -11,11 +11,14 @@ module test_order_book_side_bid;
     reg clk;
     reg insertValid;
     reg removeValid;
+    reg reduceValid;
 
     reg [15:0] insertPrice;
     reg [15:0] insertQuantity;
     reg [15:0] insertOrderID;
     reg [15:0] insertSeqNum;
+    
+    reg [15:0] reduceAmount;
 
     // outputs from order_book_side
     wire [7:0] valid;
@@ -27,6 +30,7 @@ module test_order_book_side_bid;
     wire simultaneousOpError;
     wire insertFullError;
     wire removeEmptyError;
+    wire overReduceError;
 
 
     // instantiate dut
@@ -38,10 +42,12 @@ module test_order_book_side_bid;
         .clk(clk),
         .insertValid(insertValid),
         .removeValid(removeValid),
+        .reduceValid(reduceValid),
         .insertPrice(insertPrice),
         .insertQuantity(insertQuantity),
         .insertOrderID(insertOrderID),
         .insertSeqNum(insertSeqNum),
+        .reduceAmount(reduceAmount),
         .valid(valid),
         .price(price),
         .quantity(quantity),
@@ -49,7 +55,8 @@ module test_order_book_side_bid;
         .seqNum(seqNum),
         .simultaneousOpError(simultaneousOpError),
         .insertFullError(insertFullError),
-        .removeEmptyError(removeEmptyError)
+        .removeEmptyError(removeEmptyError),
+        .overReduceError(overReduceError)
     );
 
     // clock
@@ -60,10 +67,12 @@ module test_order_book_side_bid;
     initial begin
         insertValid = 0;
         removeValid = 0;
+        reduceValid = 0;
         insertPrice = 0;
         insertQuantity = 0;
         insertOrderID = 0;
         insertSeqNum = 0;
+        reduceAmount = 0;
     end
 
     // reusable printing task
