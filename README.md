@@ -5,13 +5,13 @@ A UART-based order matching engine implemented in hand-coded Verilog for the
 (Gowin GW1NR-9C, 27 MHz).
 
 This project builds an application layer on top of a separate, standalone UART
-implementation ([tang-nano-uart](https://github.com/verweypaolo/tang-nano-9k-uart) — link to that repo). Where that repo is a
-showcase of the UART protocol itself (fractional baud generation, parity,
-framing-error detection), this repo is a showcase of *using* UART as a
-transport for something more interesting: a reactive market-matching engine
-that receives buy/sell orders as multi-byte messages, matches them against a
-resting order book, and reports back the outcome — all inside FPGA fabric,
-with no soft CPU involved.
+implementation ([tang-nano-9k-uart](https://github.com/verweypaolo/tang-nano-9k-uart)).
+Where that repo is a showcase of the UART protocol itself (fractional baud
+generation, parity, framing-error detection), this repo is a showcase of
+*using* UART as a transport for something more interesting: a reactive
+market-matching engine that receives buy/sell orders as multi-byte messages,
+matches them against a resting order book — including partial fills — and
+reports back the outcome, all inside FPGA fabric, with no soft CPU involved.
 
 ## Scope
 
@@ -33,12 +33,13 @@ byte-level `byteReady` handshake above):
 uart_rx.v          bits -> bytes         (byteReady, dataIn, uartFrameError, parityError)
 message_rx.v        bytes -> messages    (messageReady, sentinelError, timeOutError,
                                           checksumError, decoded order fields)
-order_book_side.v   sorted resting orders per side (insert/remove, N=8, parameterized
-                                          by sort direction for bid vs. ask)
-matching engine     messages + book state -> book updates / executions   (planned)
+order_book_side.v   sorted resting orders per side (insert/remove/reduce, N=8,
+                                          parameterized by sort direction for bid vs. ask)
+matching_engine.v   messages + book state -> book updates / executions
+                                          (orderFilled, orderResting, orderRejected)
 ```
 
-- **`uart_rx.v`** — RX-only port of the UART core from `tang-nano-uart`,
+- **`uart_rx.v`** — RX-only port of the UART core from `tang-nano-9k-uart`,
   producing one `byteReady` pulse per received byte.
 - **`message_rx.v`** *(complete, tested)* — a state machine that consumes
   UART bytes and assembles them into a fixed-length order message, validating
@@ -47,11 +48,16 @@ matching engine     messages + book state -> book updates / executions   (planne
   fixed-depth (N=8) list of resting orders for one side of the book (bid or
   ask, selected via a `DESCENDING` parameter), implemented as combinationally
   shifted register arrays rather than BRAM, so that finding the best price is
-  a direct read rather than a search. Two instances of this module (one per
-  side) will be instantiated by the matching engine.
-- **matching engine** *(planned)* — consumes `message_rx`'s decoded fields on
-  `messageReady`, matches incoming orders against the resting book, and
-  issues insert/remove commands to the appropriate `order_book_side` instance.
+  a direct read rather than a search. Supports insert, remove (of the top
+  order), and reduce (partial consumption of the top order's quantity, for
+  partial fills). Two instances of this module (one per side) are
+  instantiated by the matching engine.
+- **`matching_engine.v`** *(logically complete; testbench in progress)** —
+  instantiates `message_rx` and both `order_book_side` instances. On each
+  `messageReady` pulse, routes the order to the correct side, walks the
+  opposite side's book to resolve full or partial fills against one or more
+  resting orders, and rests any unfilled remainder as a new order — or
+  rejects it if that side's book is full.
 
 ### Why registers instead of BRAM for the order book
 
@@ -129,17 +135,65 @@ itself is generated externally (this module only stores whatever value it's
 given), since it represents a single global arrival order shared across both
 sides of the book.
 
-Three distinct error conditions are exposed, kept separate for the same
+Three operations are supported, each triggered by an edge-detected pulse:
+
+- **Insert** — combinationally finds the correct sorted position and shifts
+  existing entries to make room, in a single clock cycle.
+- **Remove** — removes the top (slot 0) order and shifts the remaining
+  entries up to close the gap, also in a single cycle.
+- **Reduce** — decrements the top order's quantity in place, without
+  shifting or invalidating it, to support partial fills. An exact-match
+  reduce (`reduceAmount == quantity`) is treated as a usage error rather than
+  silently handled: full consumption of the top order is `remove`'s
+  responsibility, not `reduce`'s, so a caller sending the two operations
+  should never be able to blur that line.
+
+Five distinct error conditions are exposed, kept separate for the same
 debuggability reasons as `message_rx.v`'s error signals:
 
 - **`insertFullError`** — an insert was attempted while all N slots were occupied.
 - **`removeEmptyError`** — a remove was attempted while the book was empty.
-- **`simultaneousOpError`** — insert and remove were both requested in the
-  same cycle; neither operation is performed, since silently picking a
-  winner could mask a bug in whatever module is driving this one.
+- **`reduceEmptyError`** — a reduce was attempted while the book was empty.
+- **`overReduceError`** — a reduce amount was greater than or equal to the
+  top order's current quantity.
+- **`simultaneousOpError`** — more than one of insert/remove/reduce were
+  requested in the same cycle; no operation is performed, since silently
+  picking a winner could mask a bug in whatever module is driving this one.
 
-Any successful insert or remove clears all three error flags; a failed
-operation only asserts its own specific flag, leaving the others untouched.
+Any successful operation clears all five error flags; a failed operation only
+asserts its own specific flag, leaving the others untouched.
+
+## Matching Engine Design
+
+`matching_engine.v` ties the whole pipeline together. It instantiates
+`message_rx` and one `order_book_side` instance per side, and drives a state
+machine off `message_rx`'s `messageReady` pulse:
+
+1. **Validate** the message type and side; malformed values are flagged
+   (`wrongMsgType`, `wrongMsgSide`) and dropped rather than acted on.
+2. **Walk the opposite side's book**, comparing the incoming order's
+   remaining quantity against each crossing resting order's quantity in turn:
+   - if the resting order is smaller, it's fully consumed (`remove`) and the
+     walk continues against the new top of book;
+   - if it's an exact match, it's fully consumed and the incoming order is
+     completely filled;
+   - if it's larger, it's partially consumed (`reduce`) and the incoming
+     order is completely filled.
+3. **Rest** any unfilled remainder as a new order on the incoming order's own
+   side, or **reject** it if that side's book is full.
+
+The walk is bounded by the book's fixed depth (`matchLoopOverrunError` is a
+defensive flag that should be structurally unreachable, guarding against a
+loop that somehow never terminates).
+
+Because `order_book_side` needs a full clock cycle to detect an
+insert/remove/reduce pulse's edge and update its own error/state outputs,
+the matching FSM includes explicit one-cycle wait states
+(`ME_STATE_MATCH_LOOP_WAIT`, `ME_STATE_REST_WAIT`) between issuing an
+operation and reading back its result.
+
+Three outcome flags report the result of each processed message:
+`orderFilled`, `orderResting`, `orderRejected`.
 
 ## Testing
 
@@ -156,9 +210,7 @@ at the simulated clock speed used for fast testing.
 All test cases run in a single sequential `initial` block, deliberately with
 no gap between most of them, so that each test also implicitly verifies
 `message_rx` correctly resets its internal state (checksum accumulator, byte
-counter, error flags) and is ready for the next message immediately —
-catching exactly the class of stale-state bug that's easy to introduce when
-building up a multi-state FSM incrementally.
+counter, error flags) and is ready for the next message immediately.
 
 Coverage, all passing:
 
@@ -181,12 +233,11 @@ Coverage, all passing:
 
 Two testbenches exercise this module — `order_book_side_bid_tb.v`
 (`DESCENDING=1`, bid side) and `order_book_side_ask_tb.v` (`DESCENDING=0`,
-ask side) — sharing
-the same overall structure: `do_insert`/`do_remove` tasks drive the module's
-insert/remove pulses directly (no UART or message framing involved, since
-this module's interface is already at the clean-signal level), and a
-`print_book` task dumps every slot's valid bit and field values for visual
-inspection after each test step.
+ask side) — sharing the same overall structure: `do_insert`/`do_remove`/
+`do_reduce` tasks drive the module's pulses directly (no UART or message
+framing involved, since this module's interface is already at the
+clean-signal level), and a `print_book` task dumps every slot's valid bit and
+field values for visual inspection after each test step.
 
 Both testbenches build up a shared scenario sequentially rather than
 resetting between tests, so later tests also implicitly verify the module's
@@ -216,6 +267,16 @@ previous test left behind:
 - **Drain to empty, then remove again** — re-confirms `removeEmptyError`
   fires correctly once the book is genuinely empty after real use, not just
   in its untouched startup state.
+- **Reduce on an empty book** — asserts `reduceEmptyError`, book state
+  unchanged.
+- **Partial reduce** — quantity decreases by exactly the requested amount;
+  every other field, and every other slot, is untouched.
+- **Over-reduce and exact-match reduce** — both assert `overReduceError` and
+  leave quantity unchanged, specifically confirming the `>=` boundary
+  (exact-match is deliberately treated as invalid usage, not a convenience
+  auto-remove).
+- **Reduce followed by an unrelated insert** — confirms a reduced quantity
+  persists correctly through a later, unrelated operation.
 
 A known, low-risk testbench-authoring hazard worth documenting: setting a
 `reg` input in the same simulation instant as the `@(posedge clk)` that's
@@ -223,14 +284,23 @@ meant to register it races against the DUT's own nonblocking assignments to
 that same edge. Every input change in both testbenches is followed by a small
 `#1` delay before being modified, specifically to avoid this.
 
+### `matching_engine.v`
+
+Not yet written, this testbench is the next planned piece of
+work.
+
 ## Status
 
-- [x] `uart_rx.v` ported from `tang-nano-uart`
+- [x] `uart_rx.v` ported from `tang-nano-9k-uart`
 - [x] `message_rx.v` — message FSM, checksum validation, resync handling
 - [x] `message_rx.v` testbench — all scenarios passing
-- [x] `order_book_side.v` — sorted N=8 register-array book, parameterized bid/ask
-- [x] `order_book_side.v` testbenches (bid + ask) — all scenarios passing
-- [ ] Matching engine — consumes messages, drives both book instances
+- [x] `order_book_side.v` — sorted N=8 register-array book, parameterized
+      bid/ask, insert/remove/reduce
+- [x] `order_book_side.v` testbenches (bid + ask) — all scenarios passing,
+      including partial-fill (reduce) support
+- [x] `matching_engine.v` — full/partial-fill matching FSM, logically
+      complete and reviewed for cross-module timing hazards
+- [ ] `matching_engine.v` testbench
 - [ ] TX-side execution reports
 - [ ] Formal verification (SymbiYosys)
 
