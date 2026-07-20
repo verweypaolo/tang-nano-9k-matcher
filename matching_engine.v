@@ -18,8 +18,14 @@ module matching_engine
     output reg orderRejected,
 
     output reg wrongMsgType,
-    output reg wrongMsgSide
+    output reg wrongMsgSide,
+    output reg matchLoopOverrunError
 );
+
+
+localparam MSG_TYPE_NEW_ORDER = 8'h01;
+localparam MSG_SIDE_BUY = 8'h00;
+localparam MSG_SIDE_SELL = 8'h01;
 
 
 // message_rx outputs
@@ -37,6 +43,12 @@ wire [16*N-1:0] orderIDBidBook, priceBidBook, quantityBidBook, seqNumBidBook;
 wire simultaneousOpErrorAsk, insertFullErrorAsk, removeEmptyErrorAsk, reduceEmptyErrorAsk, overReduceErrorAsk;
 wire [N-1:0] validAskBook;
 wire [16*N-1:0] orderIDAskBook, priceAskBook, quantityAskBook, seqNumAskBook;
+
+// helper wires for tracking book state
+wire oppositeValid0 = (side == MSG_SIDE_BUY) ? validAskBook[0] : validBidBook[0];
+wire [15:0] oppositePrice0 = (side == MSG_SIDE_BUY) ? priceAskBook[15:0] : priceBidBook[15:0];
+wire [15:0] oppositeQty0 = (side == MSG_SIDE_BUY) ? quantityAskBook[15:0] : quantityBidBook[15:0];
+wire crosses = (side == MSG_SIDE_BUY) ? (price >= oppositePrice0) : (price <= oppositePrice0);
 
 // bid/ask book triggers
 reg insertValidBid, removeValidBid;
@@ -133,12 +145,10 @@ reg [3:0] meState;
 localparam ME_STATE_IDLE = 0;
 localparam ME_STATE_DECIDE = 1;
 localparam ME_STATE_MATCH_LOOP = 2;
-localparam ME_STATE_REST = 3;
-localparam ME_STATE_REST_CONFIRM = 4;
+localparam ME_STATE_MATCH_LOOP_WAIT = 3;
+localparam ME_STATE_REST = 4;
+localparam ME_STATE_REST_CONFIRM = 5;
 
-localparam MSG_TYPE_NEW_ORDER = 8'h01;
-localparam MSG_SIDE_BUY = 8'h00;
-localparam MSG_SIDE_SELL = 8'h01;
 
 initial begin
     insertValidBid = 0;
@@ -149,11 +159,16 @@ initial begin
     reduceValidAsk = 0;
     reduceAmountBid = 0;
     reduceAmountAsk = 0;
+
     remainingQuantity = 0;
     matchLoopCount = 0;
     globalSeqNum = 0;
     messageReadyPrev = 0;
     meState = 0;
+
+    wrongMsgSide = 0;
+    wrongMsgType = 0;
+    matchLoopOverrunError = 0;
 end
 
 always @(posedge clk) begin
@@ -177,6 +192,7 @@ always @(posedge clk) begin
                 orderRejected <= 0;
                 wrongMsgType <= 0;
                 wrongMsgSide <= 0;
+                matchLoopOverrunError <= 0;
                 meState <= ME_STATE_DECIDE;
             end
         end
@@ -206,16 +222,53 @@ always @(posedge clk) begin
             end
         end
         ME_STATE_MATCH_LOOP: begin
-            // already know there's a match
-            // also disregarding quantity so only pop 1 order and move on
-            if (side == MSG_SIDE_BUY) begin
-                removeValidAsk <= 1;
-            end else begin // can use else here because invalid side has been covered before
-                removeValidBid <= 1;
+            if (oppositeValid0 && crosses) begin // if price ok and valid order to match against exists
+                if (matchLoopCount == MATCH_LOOP_MAX) begin
+                    matchLoopOverrunError <= 1;
+                    meState <= ME_STATE_IDLE;
+                end else if (oppositeQty0 < remainingQuantity) begin
+                    if (side == MSG_SIDE_BUY) begin
+                        removeValidAsk <= 1; // fully consume order from opposite book
+                    end else begin
+                        removeValidBid <= 1;
+                    end
+                    remainingQuantity <= remainingQuantity - oppositeQty0; // must do manual, quantity will not update until next cycle
+                    matchLoopCount <= matchLoopCount + 1;
+                    meState <= ME_STATE_MATCH_LOOP_WAIT;
+                end else if (oppositeQty0 == remainingQuantity) begin
+                    // exact match, pop and were done (back to idle)
+                    if (side == MSG_SIDE_BUY) begin
+                        removeValidAsk <= 1;
+                    end else begin
+                        removeValidBid <= 1;
+                    end
+                    remainingQuantity <= 0;
+                    orderFilled <= 1;
+                    globalSeqNum <= globalSeqNum + 1;
+                    meState <= ME_STATE_IDLE;
+                end else begin
+                    // best order now has more quantity available, reduce
+                    if (side == MSG_SIDE_BUY) begin
+                        reduceValidAsk <= 1;
+                        reduceAmountAsk <= remainingQuantity;
+                    end else begin
+                        reduceValidBid <= 1;
+                        reduceAmountBid <= remainingQuantity;
+                    end
+                    remainingQuantity <= 0;
+                    orderFilled <= 1;
+                    globalSeqNum <= globalSeqNum + 1;
+                    meState <= ME_STATE_IDLE;
+                end    
+            end else begin
+                // price no longer ok, or no more valid orders to match against, rest order
+                meState <= ME_STATE_REST;
             end
-            orderFilled <= 1;
-            globalSeqNum <= globalSeqNum + 1;
-            meState <= ME_STATE_IDLE;
+        end
+        ME_STATE_MATCH_LOOP_WAIT: begin
+            // needed to give one clock cycle breathing room for order book instances to update after match loop
+            // actions. Otherwise the cycle after an action in match loop will read stale values pre update
+            meState <= ME_STATE_MATCH_LOOP;
         end
         ME_STATE_REST: begin
             if (side == MSG_SIDE_BUY) begin
