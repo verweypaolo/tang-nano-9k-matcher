@@ -151,7 +151,7 @@ always @(posedge clk) begin
         removeEmptyError <= 0;
         overReduceError <= 0;
 
-        if (reduceAmount > quantity[0*16 +: 16]) begin // shouldn't happen based on matching engine logic, but good guard
+        if (reduceAmount >= quantity[0*16 +: 16]) begin // shouldn't happen based on matching engine logic, but good guard
             overReduceError <= 1;
         end else begin
             quantity[0*16 +: 16] <= quantity[0*16 +: 16] - reduceAmount; // only act on top order (like always)
