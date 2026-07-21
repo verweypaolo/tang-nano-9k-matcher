@@ -343,6 +343,27 @@ module test_matching_engine;
         end
         print_books;
 
+
+        // Test 8: multi-iteration match walk: one incoming order fully drains the entire 8-entry ask book across 7 
+        // "keep walking" iterations plus a final exact match, without hitting matchLoopOverrunError
+        send_order(8'h01, 16'h0046, 8'h00, 16'h0064, 16'h004B); // BUY id=70, price=100, qty=75
+        wait_for_outcome;
+
+        if (orderFilled !== 1) begin
+            $display("FAIL: orderFilled not asserted after full-book match walk");
+        end else if (orderResting === 1 || orderRejected === 1) begin
+            $display("FAIL: an unexpected outcome flag was also asserted alongside orderFilled");
+        end else if (matchLoopOverrunError === 1) begin
+            $display("FAIL: matchLoopOverrunError incorrectly asserted during a valid 8-entry walk");
+        end else if (dut.ask_book.valid !== 8'b0) begin
+            $display("FAIL: ask book not empty after full walk. valid=%b", dut.ask_book.valid);
+        end else if (dut.bid_book.valid !== 8'b0) begin
+            $display("FAIL: bid book incorrectly populated — fully-filled buy should leave nothing resting. valid=%b", dut.bid_book.valid);
+        end else begin
+            $display("PASS: multi-iteration match walk correctly drained all 8 resting ask orders");
+        end
+        print_books;
+
         $finish;
     end
 
