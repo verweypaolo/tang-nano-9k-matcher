@@ -121,6 +121,35 @@ module test_matching_engine;
         end
     endtask
 
+    task print_books;
+        integer k;
+        begin
+            $display("");
+            $display("==== Bid Book ====");
+            for (k = 0; k < N; k = k + 1) begin
+                if (dut.bid_book.valid[k]) begin
+                    $display("  slot %0d: price=%h qty=%h orderID=%h seqNum=%h",
+                            k, dut.bid_book.price[k*16 +: 16], dut.bid_book.quantity[k*16 +: 16],
+                            dut.bid_book.orderID[k*16 +: 16], dut.bid_book.seqNum[k*16 +: 16]);
+                end else begin
+                    $display("  slot %0d: (empty)", k);
+                end
+            end
+            $display("==== Ask Book ====");
+            for (k = 0; k < N; k = k + 1) begin
+                if (dut.ask_book.valid[k]) begin
+                    $display("  slot %0d: price=%h qty=%h orderID=%h seqNum=%h",
+                            k, dut.ask_book.price[k*16 +: 16], dut.ask_book.quantity[k*16 +: 16],
+                            dut.ask_book.orderID[k*16 +: 16], dut.ask_book.seqNum[k*16 +: 16]);
+                end else begin
+                    $display("  slot %0d: (empty)", k);
+                end
+            end
+            $display("===================");
+            $display("");
+        end
+    endtask
+
     initial begin
         $dumpfile("matching_engine_tb.vcd");
         $dumpvars(0, test_matching_engine);
@@ -152,6 +181,8 @@ module test_matching_engine;
         end else begin
             $display("PASS: single buy order correctly rested into empty bid book");
         end
+
+        print_books;
 
         $finish;
     end
