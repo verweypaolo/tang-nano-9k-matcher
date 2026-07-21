@@ -364,6 +364,41 @@ module test_matching_engine;
         end
         print_books;
 
+
+        // Test 9: matchLoopOverrunError: this condition is unreachable the real interface (order_book_side 
+        // never holds more than N resting orders, so the loop can never need more than N iterations).
+        // Force matchLoopCount to its maximum value directly, bypassing the normal interface, just to confirm 
+        // the defensive guard itself behaves correctly IF it were ever reached due to a hypothetical bug elsewhere.
+
+        send_order(8'h01, 16'h0047, 8'h01, 16'h0064, 16'h000A); // SELL id=71, price=100, qty=10 — one resting ask order
+        wait_for_outcome;
+
+        force dut.matchLoopCount = dut.MATCH_LOOP_MAX; // hijack: pretend the loop already hit its limit
+
+        send_order(8'h01, 16'h0048, 8'h00, 16'h0064, 16'h0005); // BUY id=72, price=100, qty=5 — crosses the resting order
+        wait_for_outcome;
+
+        release dut.matchLoopCount; // give control back to the DUT's own logic
+
+        if (matchLoopOverrunError !== 1) begin
+            $display("FAIL: matchLoopOverrunError not asserted when matchLoopCount was forced to its maximum");
+        end else if (orderFilled === 1 || orderResting === 1 || orderRejected === 1) begin
+            $display("FAIL: an outcome flag was incorrectly asserted alongside matchLoopOverrunError");
+        end else if (dut.ask_book.valid !== 8'b00000001) begin
+            $display("FAIL: ask book was disturbed — the overrun guard should abort before touching the book. valid=%b",
+                    dut.ask_book.valid);
+        end else if (dut.ask_book.orderID[0*16 +: 16] !== 16'h0047
+                || dut.ask_book.quantity[0*16 +: 16] !== 16'h000A) begin
+            $display("FAIL: the resting order's fields were altered despite the guard aborting the match. orderID=%h qty=%h",
+                    dut.ask_book.orderID[0*16 +: 16], dut.ask_book.quantity[0*16 +: 16]);
+        end else if (dut.bid_book.valid !== 8'b0) begin
+            $display("FAIL: bid book was disturbed — the incoming buy should not have rested after an overrun abort. valid=%b",
+                    dut.bid_book.valid);
+        end else begin
+            $display("PASS: matchLoopOverrunError correctly asserted under a forced condition, book left completely untouched");
+        end
+        print_books;
+        
         $finish;
     end
 
