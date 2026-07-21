@@ -307,6 +307,42 @@ module test_matching_engine;
         end
         print_books;
 
+        
+        // Test 6: an unrecognized msgType should be flagged and dropped, no book interaction
+        send_order(8'h02, 16'h0044, 8'h00, 16'h0064, 16'h0005); // msgType=0x02 (not NEW_ORDER), otherwise valid-looking BUY
+        wait_for_outcome;
+
+        if (wrongMsgType !== 1) begin
+            $display("FAIL: wrongMsgType not asserted for an unrecognized msgType");
+        end else if (orderFilled === 1 || orderResting === 1 || orderRejected === 1) begin
+            $display("FAIL: an outcome flag was incorrectly asserted alongside wrongMsgType");
+        end else if (dut.bid_book.valid !== 8'b0) begin
+            $display("FAIL: bid book was disturbed by a message with an invalid msgType. valid=%b", dut.bid_book.valid);
+        end else if (dut.ask_book.valid !== 8'b11111111) begin
+            $display("FAIL: ask book was unexpectedly altered. valid=%b, expected unchanged 8'b11111111", dut.ask_book.valid);
+        end else begin
+            $display("PASS: wrongMsgType correctly asserted, no book interaction occurred");
+        end
+        print_books;
+
+
+        // Test 7: an unrecognized side value should be flagged and dropped, no book interaction
+        send_order(8'h01, 16'h0045, 8'h02, 16'h0064, 16'h0005); // valid NEW_ORDER, but side=0x02 (neither BUY nor SELL)
+        wait_for_outcome;
+
+        if (wrongMsgSide !== 1) begin
+            $display("FAIL: wrongMsgSide not asserted for an unrecognized side value");
+        end else if (orderFilled === 1 || orderResting === 1 || orderRejected === 1) begin
+            $display("FAIL: an outcome flag was incorrectly asserted alongside wrongMsgSide");
+        end else if (dut.bid_book.valid !== 8'b0) begin
+            $display("FAIL: bid book was disturbed by a message with an invalid side. valid=%b", dut.bid_book.valid);
+        end else if (dut.ask_book.valid !== 8'b11111111) begin
+            $display("FAIL: ask book was unexpectedly altered. valid=%b, expected unchanged 8'b11111111", dut.ask_book.valid);
+        end else begin
+            $display("PASS: wrongMsgSide correctly asserted, no book interaction occurred");
+        end
+        print_books;
+
         $finish;
     end
 
