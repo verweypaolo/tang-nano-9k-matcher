@@ -438,12 +438,35 @@ module test_matching_engine;
         end else if (dut.bid_book.orderID[0*16 +: 16] !== 16'h0049
                 || dut.bid_book.quantity[0*16 +: 16] !== 16'h0005) begin
         $display("FAIL: the resting order's fields were altered despite the guard aborting the match. orderID=%h qty=%h",
-            dut.bid_book.orderID[0*16 +: 16], dut.bid_book.quantity[0*16 +: 16]); // fixed: bid_book, not ask_book
+            dut.bid_book.orderID[0*16 +: 16], dut.bid_book.quantity[0*16 +: 16]); 
         end else if (dut.ask_book.valid !== 8'b0) begin
             $display("FAIL: ask book was disturbed — the incoming sell should not have rested after an overrun abort. valid=%b",
-                    dut.ask_book.valid); // fixed: "ask book", matching what's actually checked
+                    dut.ask_book.valid);
         end else begin
             $display("PASS: matchLoopOverrunError correctly asserted under a forced condition, book left completely untouched");
+        end
+        print_books;
+
+        // Test 12: back-to-back messages, no gap, the second order's bytes begin streaming immediately after the first's 
+        // checksum byte, with no wait_for_outcome in between
+        send_order(8'h01, 16'h0050, 8'h01, 16'h006E, 16'h000F); // SELL id=80, price=110, qty=15 non-crossing, rests
+        send_order(8'h01, 16'h0051, 8'h01, 16'h0078, 16'h0014); // SELL id=81, price=120, qty=20 non-crossing, rests, sent immediately after
+
+        wait_for_outcome; // catches the second order's resolution
+
+        if (dut.ask_book.valid !== 8'b00000011) begin
+            $display("FAIL: ask book valid mask = %b, expected 8'b00000011 after two back-to-back resting orders", dut.ask_book.valid);
+        end else if (dut.ask_book.price[0*16 +: 16] !== 16'h006E || dut.ask_book.orderID[0*16 +: 16] !== 16'h0050) begin
+            $display("FAIL: first back-to-back order not correctly resting at slot 0. price=%h orderID=%h",
+                    dut.ask_book.price[0*16 +: 16], dut.ask_book.orderID[0*16 +: 16]);
+        end else if (dut.ask_book.price[1*16 +: 16] !== 16'h0078 || dut.ask_book.orderID[1*16 +: 16] !== 16'h0051) begin
+            $display("FAIL: second back-to-back order not correctly resting at slot 1. price=%h orderID=%h",
+                    dut.ask_book.price[1*16 +: 16], dut.ask_book.orderID[1*16 +: 16]);
+        end else if (dut.bid_book.valid !== 8'b00000001 || dut.bid_book.orderID[0*16 +: 16] !== 16'h0049) begin
+            $display("FAIL: bid book was disturbed by back-to-back sell orders. valid=%b orderID=%h",
+                    dut.bid_book.valid, dut.bid_book.orderID[0*16 +: 16]);
+        end else begin
+            $display("PASS: back-to-back messages with no gap both correctly processed and resting in sorted order");
         end
         print_books;
 
