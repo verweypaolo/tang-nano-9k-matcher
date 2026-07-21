@@ -52,12 +52,12 @@ matching_engine.v   messages + book state -> book updates / executions
   order), and reduce (partial consumption of the top order's quantity, for
   partial fills). Two instances of this module (one per side) are
   instantiated by the matching engine.
-- **`matching_engine.v`** *(logically complete; testbench in progress)** —
-  instantiates `message_rx` and both `order_book_side` instances. On each
-  `messageReady` pulse, routes the order to the correct side, walks the
-  opposite side's book to resolve full or partial fills against one or more
-  resting orders, and rests any unfilled remainder as a new order — or
-  rejects it if that side's book is full.
+- **`matching_engine.v`** *(complete, tested)* — instantiates `message_rx`
+  and both `order_book_side` instances. On each `messageReady` pulse, routes
+  the order to the correct side, walks the opposite side's book to resolve
+  full or partial fills against one or more resting orders, and rests any
+  unfilled remainder as a new order — or rejects it if that side's book is
+  full.
 
 ### Why registers instead of BRAM for the order book
 
@@ -69,6 +69,20 @@ computes insertion position via a fully parallel, combinational priority
 encoder, and shifts on insert/remove in a single clock cycle — trading some
 LUT/flip-flop budget for a book where "what is the best price" is always a
 direct read, never a scan.
+
+### Resource utilization
+
+Synthesized for the GW1NR-9C via Yosys (`synth_gowin`), the complete pipeline
+— UART RX, message framing, both order book sides with partial-fill support,
+and the full matching FSM — uses:
+
+| Resource   | Used  | Available | Utilization |
+|------------|------:|----------:|-------------:|
+| Flip-flops |   718 |     6,480 |        ~11% |
+| LUTs       | 3,350 |     8,640 |        ~39% |
+
+Comfortable headroom remains for TX-side execution reporting and any future
+extensions.
 
 ## Message Format
 
@@ -183,13 +197,13 @@ machine off `message_rx`'s `messageReady` pulse:
    side, or **reject** it if that side's book is full.
 
 The walk is bounded by the book's fixed depth (`matchLoopOverrunError` is a
-defensive flag that should be structurally unreachable, guarding against a
-loop that somehow never terminates).
+defensive flag that should be structurally unreachable in normal operation,
+since `order_book_side` never holds more than N resting orders — guarding
+against a loop that somehow never terminates).
 
 Because `order_book_side` needs a full clock cycle to detect an
 insert/remove/reduce pulse's edge and update its own error/state outputs,
-the matching FSM includes explicit one-cycle wait states
-(`ME_STATE_MATCH_LOOP_WAIT`, `ME_STATE_REST_WAIT`) between issuing an
+the matching FSM includes explicit one-cycle wait states between issuing an
 operation and reading back its result.
 
 Three outcome flags report the result of each processed message:
@@ -286,8 +300,57 @@ that same edge. Every input change in both testbenches is followed by a small
 
 ### `matching_engine.v`
 
-Not yet written, this testbench is the next planned piece of
-work.
+`matching_engine_tb.v` drives the engine at its real, external interface —
+raw UART bytes via the same `send_byte`/`send_order` tasks used for
+`message_rx_tb.v` — rather than injecting synthetic internal state, so each
+test exercises the full signal path from serial line to book contents.
+Since `order_book_side`'s internal registers aren't exposed as
+`matching_engine` ports, tests read them via hierarchical references
+(e.g. `dut.bid_book.price`) for verification purposes only. A bounded
+polling task (`wait_for_outcome`) waits for any outcome/error flag to assert,
+since different order paths (a simple rest vs. a multi-order match walk)
+resolve in different numbers of cycles.
+
+Tests build on cumulative book state across the file rather than resetting
+between them; this was itself the source of one test-design bug (a setup
+order unexpectedly matching against a resting order left by an earlier
+test), caught and fixed by tracing the actual book contents rather than
+trusting an assumption about what should still be resting.
+
+Coverage, all passing:
+
+- **Rest into an empty book**, **exact-match full fill**, **full match with
+  a resting remainder**, and **partial match via reduce** — the four
+  single-order outcome paths, each verified against both the outcome flag
+  and the resulting book contents on both sides.
+- **Reject on a full book** — the resting side filled to N=8, confirming
+  `orderRejected` and `order_book_side`'s own `insertFullError`, with book
+  contents left unchanged.
+- **`wrongMsgType`** and **`wrongMsgSide`** — malformed messages are flagged
+  and dropped with zero book interaction.
+- **Multi-iteration match walk** — a single incoming order drains an entire
+  8-entry book across seven "fully consume, keep walking" iterations plus a
+  final exact match, confirming the loop's wait-state timing holds up at
+  its structural limit.
+- **`matchLoopOverrunError`** — this condition is unreachable through the
+  real interface (the book can never hold more than N orders, so the walk
+  can never need more than N iterations). Verified instead by directly
+  `force`/`release`-ing the loop counter to its maximum via a hierarchical
+  reference, confirming the defensive guard fires correctly and aborts
+  cleanly with no partial side effects, if it were ever reached due to a
+  hypothetical bug elsewhere.
+- **Sequence number correctness** — increments exactly once per resolved
+  order (fill, rest, or reject), does not increment for dropped messages,
+  and the value stored in the book matches what was actually assigned.
+- **Back-to-back messages with no gap** — a second order's bytes begin
+  streaming immediately after the first's checksum byte, confirming the FSM
+  returns to `IDLE` and correctly processes both messages independently.
+
+This testbench caught two genuine timing bugs during development: the
+match-loop and rest paths were both, at different points, reporting a
+result one cycle before the corresponding `order_book_side` operation had
+actually taken effect — found by checking actual book contents rather than
+trusting the engine's self-reported outcome flag.
 
 ## Status
 
@@ -298,9 +361,8 @@ work.
       bid/ask, insert/remove/reduce
 - [x] `order_book_side.v` testbenches (bid + ask) — all scenarios passing,
       including partial-fill (reduce) support
-- [x] `matching_engine.v` — full/partial-fill matching FSM, logically
-      complete and reviewed for cross-module timing hazards
-- [ ] `matching_engine.v` testbench
+- [x] `matching_engine.v` — full/partial-fill matching FSM
+- [x] `matching_engine.v` testbench — all scenarios passing
 - [ ] TX-side execution reports
 - [ ] Formal verification (SymbiYosys)
 
