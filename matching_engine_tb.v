@@ -232,6 +232,37 @@ module test_matching_engine;
         end
         print_books;
 
+
+        // Test 4: partial match, incoming fully filled — resting order is
+        // larger than the incoming order, so it gets reduced rather than removed
+        send_order(8'h01, 16'h0032, 8'h01, 16'h0064, 16'h0014); // SELL id=50, price=100, qty=20
+        wait_for_outcome;
+
+        print_books;
+
+        send_order(8'h01, 16'h0033, 8'h00, 16'h0064, 16'h0008); // BUY id=51, price=100, qty=8
+        wait_for_outcome;
+
+        if (orderFilled !== 1) begin
+            $display("FAIL: orderFilled not asserted for a reduce-only partial match");
+        end else if (orderResting === 1 || orderRejected === 1) begin
+            $display("FAIL: an unexpected outcome flag was also asserted alongside orderFilled");
+        end else if (dut.ask_book.valid !== 8'b00000001) begin
+            $display("FAIL: ask book valid mask = %b, expected 8'b00000001 (resting order should remain, reduced)", dut.ask_book.valid);
+        end else if (dut.ask_book.price[0*16 +: 16] !== 16'h0064
+                || dut.ask_book.quantity[0*16 +: 16] !== 16'h0005
+                || dut.ask_book.orderID[0*16 +: 16] !== 16'h0032) begin
+            $display("FAIL: ask book slot 0 incorrect after reduce. price=%h qty=%h orderID=%h, expected qty=0x0005, orderID unchanged at 0x32",
+                    dut.ask_book.price[0*16 +: 16], dut.ask_book.quantity[0*16 +: 16],
+                    dut.ask_book.orderID[0*16 +: 16]);
+        end else if (dut.bid_book.valid !== 8'b0) begin
+            $display("FAIL: bid book should now be empty — Test 3's leftover was consumed by this test's first SELL. valid=%b",
+                    dut.bid_book.valid);
+        end else begin
+            $display("PASS: resting order correctly reduced (not removed), incoming order fully filled");
+        end
+        print_books;
+
         $finish;
     end
 
