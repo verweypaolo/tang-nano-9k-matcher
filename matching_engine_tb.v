@@ -39,12 +39,14 @@ module test_matching_engine;
         .matchLoopOverrunError(matchLoopOverrunError)
     );
 
+    reg [15:0] seqBefore;
 
     initial clk = 0;
     always #5 clk = ~clk;
 
     initial begin
         uart_rx_line = 1;
+        seqBefore = 0;
     end
 
 
@@ -149,6 +151,7 @@ module test_matching_engine;
             $display("");
         end
     endtask
+
 
     initial begin
         $dumpfile("matching_engine_tb.vcd");
@@ -365,17 +368,62 @@ module test_matching_engine;
         print_books;
 
 
-        // Test 9: matchLoopOverrunError: this condition is unreachable the real interface (order_book_side 
+        // Test 9: globalSeqNum increments exactly once per resolved order,
+        // and the stored seqNum reflects the value at the moment of insertion
+        seqBefore = dut.globalSeqNum;
+
+        send_order(8'h01, 16'h0049, 8'h00, 16'h0064, 16'h000A); // BUY id=73, price=100, qty=10 — rests into empty book
+        wait_for_outcome;
+
+        if (dut.globalSeqNum !== seqBefore + 1) begin
+            $display("FAIL: globalSeqNum = %d, expected %d (before + 1)", dut.globalSeqNum, seqBefore + 1);
+        end else if (dut.bid_book.seqNum[0*16 +: 16] !== seqBefore) begin
+            $display("FAIL: bid book slot 0 seqNum = %d, expected %d (pre-increment value)",
+                    dut.bid_book.seqNum[0*16 +: 16], seqBefore);
+        end else begin
+            $display("PASS: globalSeqNum incremented exactly once, resting order stored the correct pre-increment seqNum");
+        end
+        print_books;
+
+
+        // Test 10: dropped messages (wrongMsgType, wrongMsgSide) must not
+        // increment globalSeqNum — only genuinely resolved orders should
+        seqBefore = dut.globalSeqNum;
+
+        send_order(8'h02, 16'h004A, 8'h00, 16'h0064, 16'h0005); // bad msgType — should be dropped
+        wait_for_outcome;
+
+        send_order(8'h01, 16'h004B, 8'h02, 16'h0064, 16'h0005); // bad side — should be dropped
+        wait_for_outcome;
+
+        if (dut.globalSeqNum !== seqBefore) begin
+            $display("FAIL: globalSeqNum changed after dropped messages. before=%d after=%d", seqBefore, dut.globalSeqNum);
+        end else begin
+            $display("PASS: globalSeqNum correctly unchanged after wrongMsgType and wrongMsgSide drops");
+        end
+
+        // confirm a subsequent valid order still increments by exactly one,
+        // not by some leftover/miscounted amount
+        send_order(8'h01, 16'h004C, 8'h01, 16'h0032, 16'h0005); // SELL id=76, price=50, qty=5 — rests
+        wait_for_outcome;
+
+        if (dut.globalSeqNum !== seqBefore + 1) begin
+            $display("FAIL: globalSeqNum = %d after a valid order following two drops, expected %d",
+                    dut.globalSeqNum, seqBefore + 1);
+        end else begin
+            $display("PASS: globalSeqNum correctly incremented by exactly one for the valid order, unaffected by prior drops");
+        end
+        print_books;
+
+
+        // Test 11: matchLoopOverrunError: this condition is unreachable the real interface (order_book_side 
         // never holds more than N resting orders, so the loop can never need more than N iterations).
         // Force matchLoopCount to its maximum value directly, bypassing the normal interface, just to confirm 
         // the defensive guard itself behaves correctly IF it were ever reached due to a hypothetical bug elsewhere.
 
-        send_order(8'h01, 16'h0047, 8'h01, 16'h0064, 16'h000A); // SELL id=71, price=100, qty=10 — one resting ask order
-        wait_for_outcome;
-
         force dut.matchLoopCount = dut.MATCH_LOOP_MAX; // hijack: pretend the loop already hit its limit
 
-        send_order(8'h01, 16'h0048, 8'h00, 16'h0064, 16'h0005); // BUY id=72, price=100, qty=5 — crosses the resting order
+        send_order(8'h01, 16'h0048, 8'h01, 16'h0064, 16'h0005); // ASK id=72, price=100, qty=5 — crosses the resting order
         wait_for_outcome;
 
         release dut.matchLoopCount; // give control back to the DUT's own logic
@@ -384,21 +432,21 @@ module test_matching_engine;
             $display("FAIL: matchLoopOverrunError not asserted when matchLoopCount was forced to its maximum");
         end else if (orderFilled === 1 || orderResting === 1 || orderRejected === 1) begin
             $display("FAIL: an outcome flag was incorrectly asserted alongside matchLoopOverrunError");
-        end else if (dut.ask_book.valid !== 8'b00000001) begin
-            $display("FAIL: ask book was disturbed — the overrun guard should abort before touching the book. valid=%b",
-                    dut.ask_book.valid);
-        end else if (dut.ask_book.orderID[0*16 +: 16] !== 16'h0047
-                || dut.ask_book.quantity[0*16 +: 16] !== 16'h000A) begin
-            $display("FAIL: the resting order's fields were altered despite the guard aborting the match. orderID=%h qty=%h",
-                    dut.ask_book.orderID[0*16 +: 16], dut.ask_book.quantity[0*16 +: 16]);
-        end else if (dut.bid_book.valid !== 8'b0) begin
-            $display("FAIL: bid book was disturbed — the incoming buy should not have rested after an overrun abort. valid=%b",
+        end else if (dut.bid_book.valid !== 8'b00000001) begin
+            $display("FAIL: bid book was disturbed — the overrun guard should abort before touching the book. valid=%b",
                     dut.bid_book.valid);
+        end else if (dut.bid_book.orderID[0*16 +: 16] !== 16'h0049
+                || dut.bid_book.quantity[0*16 +: 16] !== 16'h0005) begin
+            $display("FAIL: the resting order's fields were altered despite the guard aborting the match. orderID=%h qty=%h",
+                    dut.bid_book.orderID[0*16 +: 16], dut.ask_book.quantity[0*16 +: 16]);
+        end else if (dut.ask_book.valid !== 8'b0) begin
+            $display("FAIL: bid book was disturbed — the incoming buy should not have rested after an overrun abort. valid=%b",
+                    dut.ask_book.valid);
         end else begin
             $display("PASS: matchLoopOverrunError correctly asserted under a forced condition, book left completely untouched");
         end
         print_books;
-        
+
         $finish;
     end
 
