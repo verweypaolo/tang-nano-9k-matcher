@@ -233,7 +233,7 @@ module test_matching_engine;
         print_books;
 
 
-        // Test 4: partial match, incoming fully filled — resting order is
+        // Test 4: partial match, incoming fully filled; resting order is
         // larger than the incoming order, so it gets reduced rather than removed
         send_order(8'h01, 16'h0032, 8'h01, 16'h0064, 16'h0014); // SELL id=50, price=100, qty=20
         wait_for_outcome;
@@ -260,6 +260,50 @@ module test_matching_engine;
                     dut.bid_book.valid);
         end else begin
             $display("PASS: resting order correctly reduced (not removed), incoming order fully filled");
+        end
+        print_books;
+
+
+        // Test 5: fill the ask book to full, then confirm the next order is rejected
+        send_order(8'h01, 16'h003C, 8'h01, 16'h0032, 16'h000A); // SELL id=60, price=50, qty=10
+        wait_for_outcome;
+        send_order(8'h01, 16'h003D, 8'h01, 16'h0046, 16'h000A); // SELL id=61, price=70, qty=10
+        wait_for_outcome;
+        send_order(8'h01, 16'h003E, 8'h01, 16'h0050, 16'h000A); // SELL id=62, price=80, qty=10
+        wait_for_outcome;
+        send_order(8'h01, 16'h003F, 8'h01, 16'h005A, 16'h000A); // SELL id=63, price=90, qty=10
+        wait_for_outcome;
+        send_order(8'h01, 16'h0040, 8'h01, 16'h0028, 16'h000A); // SELL id=64, price=40, qty=10
+        wait_for_outcome;
+        send_order(8'h01, 16'h0041, 8'h01, 16'h0019, 16'h000A); // SELL id=65, price=25, qty=10
+        wait_for_outcome;
+        send_order(8'h01, 16'h0042, 8'h01, 16'h000F, 16'h000A); // SELL id=66, price=15, qty=10
+        wait_for_outcome;
+
+        if (dut.ask_book.valid !== 8'b11111111) begin
+            $display("FAIL: ask book valid mask = %b, expected full 8'b11111111 before reject test", dut.ask_book.valid);
+        end else begin
+            $display("PASS: ask book correctly filled to N=8 in preparation for reject test");
+        end
+        print_books;
+
+        // Now the ask book is full: one more non-crossing SELL should be rejected
+        send_order(8'h01, 16'h0043, 8'h01, 16'h003C, 16'h0005); // SELL id=67, price=60, qty=5 — should be rejected
+        wait_for_outcome;
+
+        if (orderRejected !== 1) begin
+            $display("FAIL: orderRejected not asserted when resting side's book was full");
+        end else if (orderFilled === 1 || orderResting === 1) begin
+            $display("FAIL: an unexpected outcome flag was also asserted alongside orderRejected");
+        end else if (dut.ask_book.insertFullError !== 1) begin
+            $display("FAIL: order_book_side's own insertFullError not asserted. insertFullError=%b", dut.ask_book.insertFullError);
+        end else if (dut.ask_book.valid !== 8'b11111111) begin
+            $display("FAIL: ask book valid mask changed despite rejection. valid=%b", dut.ask_book.valid);
+        end else if (dut.ask_book.orderID[7*16 +: 16] !== 16'h0032) begin
+            $display("FAIL: last legitimate ask book entry (id=0x32) disturbed by the rejected order. orderID=%h",
+                    dut.ask_book.orderID[7*16 +: 16]);
+        end else begin
+            $display("PASS: orderRejected correctly asserted when book was full, book contents unchanged");
         end
         print_books;
 
