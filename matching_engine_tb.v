@@ -107,6 +107,53 @@ module test_matching_engine;
         end
     endtask
 
+    task wait_for_outcome; 
+    // helpful for timing, especially as different order paths can now have differrent cycle counts (e.g. walking the book)
+        integer guard;
+        begin
+            guard = 0;
+            while (!orderFilled && !orderResting && !orderRejected
+                && !wrongMsgType && !wrongMsgSide && !matchLoopOverrunError
+                && guard < 200) begin
+                @(posedge clk);
+                guard = guard + 1;
+            end
+        end
+    endtask
 
+    initial begin
+        $dumpfile("matching_engine_tb.vcd");
+        $dumpvars(0, test_matching_engine);
+    end
+
+    initial begin
+        @(posedge clk);
+        #1;
+
+        // Test 1: single buy order into an empty book; should rest, not match
+        send_order(8'h01, 16'h0001, 8'h00, 16'h0064, 16'h000A); // NEW_ORDER, id=1, BUY, price=100, qty=10
+
+        wait_for_outcome;
+
+        if (orderResting !== 1) begin
+            $display("FAIL: orderResting not asserted for a resting buy order into an empty book");
+        end else if (orderFilled === 1 || orderRejected === 1) begin
+            $display("FAIL: an unexpected outcome flag was also asserted alongside orderResting");
+        end else if (dut.bid_book.valid !== 8'b00000001) begin
+            $display("FAIL: bid book valid mask = %b, expected 8'b00000001", dut.bid_book.valid);
+        end else if (dut.bid_book.price[0*16 +: 16] !== 16'h0064
+                || dut.bid_book.quantity[0*16 +: 16] !== 16'h000A
+                || dut.bid_book.orderID[0*16 +: 16] !== 16'h0001) begin
+            $display("FAIL: bid book slot 0 fields incorrect. price=%h qty=%h orderID=%h",
+                    dut.bid_book.price[0*16 +: 16], dut.bid_book.quantity[0*16 +: 16],
+                    dut.bid_book.orderID[0*16 +: 16]);
+        end else if (dut.ask_book.valid !== 8'b0) begin
+            $display("FAIL: ask book was disturbed by a buy-side resting order. valid=%b", dut.ask_book.valid);
+        end else begin
+            $display("PASS: single buy order correctly rested into empty bid book");
+        end
+
+        $finish;
+    end
 
 endmodule
