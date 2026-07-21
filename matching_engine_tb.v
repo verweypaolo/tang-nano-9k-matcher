@@ -202,6 +202,36 @@ module test_matching_engine;
         end
         print_books;
 
+
+        // Test 3: full match with leftover; resting order fully consumed,
+        // unfilled remainder rests on the incoming order's own side
+        send_order(8'h01, 16'h0028, 8'h01, 16'h0064, 16'h0005); // SELL id=40, price=100, qty=5
+        wait_for_outcome;
+
+        print_books;
+
+        send_order(8'h01, 16'h0029, 8'h00, 16'h0064, 16'h000C); // BUY id=41, price=100, qty=12
+        wait_for_outcome;
+
+        if (orderResting !== 1) begin
+            $display("FAIL: orderResting not asserted for a match-then-rest order");
+        end else if (orderFilled === 1 || orderRejected === 1) begin
+            $display("FAIL: an unexpected outcome flag was also asserted alongside orderResting");
+        end else if (dut.ask_book.valid !== 8'b0) begin
+            $display("FAIL: ask book not empty after full consume. valid=%b", dut.ask_book.valid);
+        end else if (dut.bid_book.valid !== 8'b00000001) begin
+            $display("FAIL: bid book valid mask = %b, expected 8'b00000001 (leftover resting)", dut.bid_book.valid);
+        end else if (dut.bid_book.price[0*16 +: 16] !== 16'h0064
+                || dut.bid_book.quantity[0*16 +: 16] !== 16'h0007
+                || dut.bid_book.orderID[0*16 +: 16] !== 16'h0029) begin
+            $display("FAIL: bid book slot 0 incorrect leftover. price=%h qty=%h orderID=%h",
+                    dut.bid_book.price[0*16 +: 16], dut.bid_book.quantity[0*16 +: 16],
+                    dut.bid_book.orderID[0*16 +: 16]);
+        end else begin
+            $display("PASS: resting order fully consumed, leftover quantity correctly rested");
+        end
+        print_books;
+
         $finish;
     end
 
