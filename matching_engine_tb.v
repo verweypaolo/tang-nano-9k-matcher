@@ -404,7 +404,7 @@ module test_matching_engine;
 
         // confirm a subsequent valid order still increments by exactly one,
         // not by some leftover/miscounted amount
-        send_order(8'h01, 16'h004C, 8'h01, 16'h0032, 16'h0005); // SELL id=76, price=50, qty=5 — rests
+        send_order(8'h01, 16'h004C, 8'h01, 16'h0032, 16'h0005); // SELL id=76, price=50, qty=5 — matches against resting bid id=0x49, reduces it from 10 to 5
         wait_for_outcome;
 
         if (dut.globalSeqNum !== seqBefore + 1) begin
@@ -437,11 +437,11 @@ module test_matching_engine;
                     dut.bid_book.valid);
         end else if (dut.bid_book.orderID[0*16 +: 16] !== 16'h0049
                 || dut.bid_book.quantity[0*16 +: 16] !== 16'h0005) begin
-            $display("FAIL: the resting order's fields were altered despite the guard aborting the match. orderID=%h qty=%h",
-                    dut.bid_book.orderID[0*16 +: 16], dut.ask_book.quantity[0*16 +: 16]);
+        $display("FAIL: the resting order's fields were altered despite the guard aborting the match. orderID=%h qty=%h",
+            dut.bid_book.orderID[0*16 +: 16], dut.bid_book.quantity[0*16 +: 16]); // fixed: bid_book, not ask_book
         end else if (dut.ask_book.valid !== 8'b0) begin
-            $display("FAIL: bid book was disturbed — the incoming buy should not have rested after an overrun abort. valid=%b",
-                    dut.ask_book.valid);
+            $display("FAIL: ask book was disturbed — the incoming sell should not have rested after an overrun abort. valid=%b",
+                    dut.ask_book.valid); // fixed: "ask book", matching what's actually checked
         end else begin
             $display("PASS: matchLoopOverrunError correctly asserted under a forced condition, book left completely untouched");
         end
