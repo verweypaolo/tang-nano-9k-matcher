@@ -159,6 +159,7 @@ module test_matching_engine;
         @(posedge clk);
         #1;
 
+
         // Test 1: single buy order into an empty book; should rest, not match
         send_order(8'h01, 16'h0001, 8'h00, 16'h0064, 16'h000A); // NEW_ORDER, id=1, BUY, price=100, qty=10
 
@@ -181,7 +182,24 @@ module test_matching_engine;
         end else begin
             $display("PASS: single buy order correctly rested into empty bid book");
         end
+        print_books;
 
+
+        // Test 2: exact-match full fill, resting order's quantity exactly equals the incoming order's quantity
+        send_order(8'h01, 16'h001E, 8'h01, 16'h0064, 16'h000A); // SELL id=30, price=100, qty=10
+        wait_for_outcome;
+
+        if (orderFilled !== 1) begin
+            $display("FAIL: orderFilled not asserted for an exact-match order");
+        end else if (orderResting === 1 || orderRejected === 1) begin
+            $display("FAIL: an unexpected outcome flag was also asserted alongside orderFilled");
+        end else if (dut.ask_book.valid !== 8'b0) begin
+            $display("FAIL: ask book not empty after exact-match consume. valid=%b", dut.ask_book.valid);
+        end else if (dut.bid_book.valid !== 8'b0) begin
+            $display("FAIL: bid book incorrectly populated — exact match should leave nothing resting. valid=%b", dut.bid_book.valid);
+        end else begin
+            $display("PASS: exact-match order correctly fully filled, ask book emptied, nothing rested");
+        end
         print_books;
 
         $finish;

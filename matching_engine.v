@@ -149,6 +149,7 @@ localparam ME_STATE_MATCH_LOOP_WAIT = 3;
 localparam ME_STATE_REST = 4;
 localparam ME_STATE_REST_WAIT = 5;
 localparam ME_STATE_REST_CONFIRM = 6;
+localparam ME_STATE_MATCH_DONE_WAIT = 7;
 
 
 initial begin
@@ -170,6 +171,10 @@ initial begin
     wrongMsgSide = 0;
     wrongMsgType = 0;
     matchLoopOverrunError = 0;
+
+    orderFilled = 0;
+    orderResting = 0;
+    orderRejected = 0;
 end
 
 always @(posedge clk) begin
@@ -236,9 +241,8 @@ always @(posedge clk) begin
                         removeValidBid <= 1;
                     end
                     remainingQuantity <= 0;
-                    orderFilled <= 1;
                     globalSeqNum <= globalSeqNum + 1;
-                    meState <= ME_STATE_IDLE;
+                    meState <= ME_STATE_MATCH_DONE_WAIT;
                 end else begin
                     // best order now has more quantity available, reduce
                     if (side == MSG_SIDE_BUY) begin
@@ -249,9 +253,8 @@ always @(posedge clk) begin
                         reduceAmountBid <= remainingQuantity;
                     end
                     remainingQuantity <= 0;
-                    orderFilled <= 1;
                     globalSeqNum <= globalSeqNum + 1;
-                    meState <= ME_STATE_IDLE;
+                    meState <= ME_STATE_MATCH_DONE_WAIT;
                 end    
             end else begin
                 // price no longer ok, or no more valid orders to match against, rest order
@@ -262,6 +265,12 @@ always @(posedge clk) begin
             // needed to give one clock cycle breathing room for order book instances to update after match loop
             // actions. Otherwise the cycle after an action in match loop will read stale values pre update
             meState <= ME_STATE_MATCH_LOOP;
+        end
+        ME_STATE_MATCH_DONE_WAIT: begin
+            // same reason as other waiting states: need an extra cycle to allow the order book state to update,
+            // otherwise orderFilled is asserted one cycle BEFORE the book updates.
+            orderFilled <= 1;
+            meState <= ME_STATE_IDLE;
         end
         ME_STATE_REST: begin
             if (side == MSG_SIDE_BUY) begin
