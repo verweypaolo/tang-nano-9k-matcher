@@ -201,21 +201,13 @@ always @(posedge clk) begin
             if (msgType != MSG_TYPE_NEW_ORDER) begin
                 wrongMsgType <= 1;
                 meState <= ME_STATE_IDLE;
-            end else if (side == MSG_SIDE_BUY) begin
+            end else if (side == MSG_SIDE_BUY || side == MSG_SIDE_SELL) begin
                 remainingQuantity <= quantity;
                 matchLoopCount <= 0;
-                if (validAskBook[0] && price >= priceAskBook[15:0]) begin
+                if (oppositeValid0 && crosses) begin
                     meState <= ME_STATE_MATCH_LOOP; // match
                 end else begin
                     meState <= ME_STATE_REST; // no match, try to rest
-                end
-            end else if (side == MSG_SIDE_SELL) begin
-                remainingQuantity <= quantity;
-                matchLoopCount <= 0;
-                if (validBidBook[0] && price <= priceBidBook[15:0]) begin
-                    meState <= ME_STATE_MATCH_LOOP;
-                end else begin
-                    meState <= ME_STATE_REST;
                 end
             end else begin
                 wrongMsgSide <= 1;
