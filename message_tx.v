@@ -70,7 +70,12 @@ localparam MTX_STATE_IDLE = 0;
 localparam MTX_STATE_SENTINEL = 1;
 localparam MTX_STATE_MSG_TYPE = 2;
 localparam MTX_STATE_ORDER_ID = 3;
+localparam MTX_STATE_OUTCOME = 4;
+localparam MTX_STATE_PRICE = 5;
+localparam MTX_STATE_QUANTITY = 6;
+localparam MTX_STATE_CHECKSUM = 7;
 
+reg byteCounter;
 
 initial begin
     msgType = 0;
@@ -89,6 +94,8 @@ initial begin
     txByteConsumedPrev = 0;
     txByteValid = 0;
     txByteData = 0;
+
+    byteCounter = 0;
 end
 
 always @(posedge clk) begin
@@ -132,6 +139,19 @@ always @(posedge clk) begin
             if (txByteConsumedEdge) begin
                 txByteValid <= 0;
                 mtxState <= MTX_STATE_ORDER_ID;
+            end
+        end
+        MTX_STATE_ORDER_ID: begin
+            txByteValid <= 1;
+            txByteData <= (byteCounter == 0) ? orderID[15:8] : orderID[7:0];
+            if (txByteConsumedEdge) begin
+                txByteValid <= 0;
+                if (byteCounter == 1) begin
+                    byteCounter <= 0;
+                    mtxState <= MTX_STATE_OUTCOME;
+                end else begin
+                    byteCounter <= byteCounter + 1;
+                end
             end
         end
     endcase
