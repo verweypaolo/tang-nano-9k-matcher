@@ -45,6 +45,24 @@ reg [3:0] mtxState;
 reg sendMessageValidPrev;
 wire sendMessageValidEdge = sendMessageValid & !sendMessageValidPrev;
 
+
+wire txByteValid;
+wire [7:0] txByteData;
+wire txByteConsumed;
+
+uart_tx #(
+    .ACC_INCREMENT(ACC_INCREMENT),
+    .ACC_MODULUS(ACC_MODULUS),
+    .BAUD_DIVISOR(BAUD_DIVISOR)
+) uart_tx_inst (
+    .clk(clk),
+    .txByteValid(txByteValid),
+    .txByteData(txByteData),
+    .txByteConsumed(txByteConsumed),
+    .uart_tx(uart_tx_line)
+);
+
+
 localparam MTX_STATE_IDLE = 0;
 localparam MTX_STATE_SENTINEL = 1;
 
