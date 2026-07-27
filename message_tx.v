@@ -69,6 +69,7 @@ wire txByteConsumedEdge = txByteConsumed & !txByteConsumedPrev;
 localparam MTX_STATE_IDLE = 0;
 localparam MTX_STATE_SENTINEL = 1;
 localparam MTX_STATE_MSG_TYPE = 2;
+localparam MTX_STATE_ORDER_ID = 3;
 
 
 initial begin
@@ -123,6 +124,14 @@ always @(posedge clk) begin
             if (txByteConsumedEdge) begin
                 txByteValid <= 0;
                 mtxState <= MTX_STATE_MSG_TYPE;
+            end
+        end
+        MTX_STATE_MSG_TYPE: begin
+            txByteValid <= 1;
+            txByteData <= msgType;
+            if (txByteConsumedEdge) begin
+                txByteValid <= 0;
+                mtxState <= MTX_STATE_ORDER_ID;
             end
         end
     endcase
