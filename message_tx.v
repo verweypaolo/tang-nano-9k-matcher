@@ -46,8 +46,8 @@ reg sendMessageValidPrev;
 wire sendMessageValidEdge = sendMessageValid & !sendMessageValidPrev;
 
 
-wire txByteValid;
-wire [7:0] txByteData;
+reg txByteValid;
+reg [7:0] txByteData;
 wire txByteConsumed;
 
 uart_tx #(
@@ -62,9 +62,13 @@ uart_tx #(
     .uart_tx(uart_tx_line)
 );
 
+reg txByteConsumedPrev;
+wire txByteConsumedEdge = txByteConsumed & !txByteConsumedPrev;
+
 
 localparam MTX_STATE_IDLE = 0;
 localparam MTX_STATE_SENTINEL = 1;
+localparam MTX_STATE_MSG_TYPE = 2;
 
 
 initial begin
@@ -80,10 +84,15 @@ initial begin
     messageSent = 0;
     txBusy = 0;
     sendWhileBusyError = 0;
+
+    txByteConsumedPrev = 0;
+    txByteValid = 0;
+    txByteData = 0;
 end
 
 always @(posedge clk) begin
     sendMessageValidPrev <= sendMessageValid;
+    txByteConsumedPrev <= txByteConsumed;
 end
 
 always @(posedge clk) begin
@@ -106,7 +115,14 @@ always @(posedge clk) begin
                 txBusy <= 1;
                 // move state
                 mtxState <= MTX_STATE_SENTINEL;
-
+            end
+        end
+        MTX_STATE_SENTINEL: begin
+            txByteValid <= 1;
+            txByteData <= SENTINEL;
+            if (txByteConsumedEdge) begin
+                txByteValid <= 0;
+                mtxState <= MTX_STATE_MSG_TYPE;
             end
         end
     endcase
