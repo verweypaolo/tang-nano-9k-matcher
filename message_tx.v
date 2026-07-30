@@ -188,6 +188,16 @@ always @(posedge clk) begin
                 end
             end
         end
+        MTX_STATE_CHECKSUM: begin
+            txByteValid <= 1;
+            txByteData <= checksum;
+            if (txByteConsumedEdge) begin
+                txByteValid <= 0;
+                txBusy <= 0;
+                messageSent <= 1;
+                mtxState <= MTX_STATE_IDLE;
+            end
+        end
     endcase
 end
 
