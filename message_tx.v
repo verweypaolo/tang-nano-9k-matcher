@@ -175,6 +175,19 @@ always @(posedge clk) begin
                 end
             end
         end
+        MTX_STATE_QUANTITY: begin
+            txByteValid <= 1;
+            txByteData <= (byteCounter == 0) ? quantity[15:8] : quantity[7:0];
+            if (txByteConsumedEdge) begin
+                txByteValid <= 0;
+                if (byteCounter == 1) begin
+                    byteCounter <= 0;
+                    mtxState <= MTX_STATE_CHECKSUM;
+                end else begin
+                    byteCounter <= byteCounter + 1;
+                end
+            end
+        end
     endcase
 end
 
