@@ -193,6 +193,57 @@ module test_message_tx;
         end
 
 
+        // Test 3: back-to-back reports, second send immediately once the first fully completes, no artificial gap
+        sendMessageValid = 1;
+        msgType = 8'h01;
+        orderID = 16'h1111;
+        outcome = 8'h01;
+        price = 16'h2222;
+        quantity = 16'h3333;
+
+        @(posedge clk);
+        #1;
+        sendMessageValid = 0;
+
+        wait_for_message_sent;
+
+        if (messageSent !== 1) begin
+            $display("FAIL: messageSent not asserted for first back-to-back report");
+        end else if (rxMsgType !== 8'h01 || rxOrderID !== 16'h1111 || rxOutcome !== 8'h01
+                || rxPrice !== 16'h2222 || rxQuantity !== 16'h3333) begin
+            $display("FAIL: first back-to-back report decoded incorrectly. msgType=%h orderID=%h outcome=%h price=%h quantity=%h",
+                    rxMsgType, rxOrderID, rxOutcome, rxPrice, rxQuantity);
+        end else begin
+            $display("PASS: first back-to-back report correctly sent and decoded");
+        end
+
+        // immediately, no gap — send the second report
+        sendMessageValid = 1;
+        msgType = 8'h02;
+        outcome = 8'h03;
+        orderID = 16'h4444;
+        price = 16'h5555;
+        quantity = 16'h6666;
+
+        @(posedge clk);
+        #1;
+        sendMessageValid = 0;
+
+        wait_for_message_sent;
+
+        if (messageSent !== 1) begin
+            $display("FAIL: messageSent not asserted for second back-to-back report");
+        end else if (sendWhileBusyError === 1) begin
+            $display("FAIL: sendWhileBusyError incorrectly asserted — second send should be accepted cleanly once first completed");
+        end else if (rxMsgType !== 8'h02 || rxOrderID !== 16'h4444 || rxOutcome !== 8'h03
+                || rxPrice !== 16'h5555 || rxQuantity !== 16'h6666) begin
+            $display("FAIL: second back-to-back report decoded incorrectly. msgType=%h orderID=%h outcome=%h price=%h quantity=%h",
+                    rxMsgType, rxOrderID, rxOutcome, rxPrice, rxQuantity);
+        end else begin
+            $display("PASS: second back-to-back report correctly sent and decoded, no gap needed");
+        end
+
+
         $finish;
     end
 
