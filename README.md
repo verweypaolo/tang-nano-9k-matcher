@@ -1,4 +1,4 @@
-# tang-nano-matcher
+# FPGA Order Matching Engine over UART
 
 A UART-based order matching engine implemented in hand-coded Verilog for the
 [Sipeed Tang Nano 9K](https://wiki.sipeed.com/hardware/en/tang/Tang-Nano-9K/Nano-9K.html)
@@ -11,7 +11,8 @@ generation, parity, framing-error detection), this repo is a showcase of
 *using* UART as a transport for something more interesting: a reactive
 market-matching engine that receives buy/sell orders as multi-byte messages,
 matches them against a resting order book — including partial fills — and
-reports back the outcome, all inside FPGA fabric, with no soft CPU involved.
+reports back the outcome over the same serial link, all inside FPGA fabric,
+with no soft CPU involved.
 
 ## Scope
 
@@ -27,7 +28,7 @@ explicitly deferred to a possible future phase.
 
 Each layer only understands the handshake contract of the layer below it —
 the same pattern used by the underlying UART core (bit-level sampling below,
-byte-level `byteReady` handshake above):
+byte-level `byteReady`/`txByteConsumed` handshakes above):
 
 ```
 uart_rx.v          bits -> bytes         (byteReady, dataIn, uartFrameError, parityError)
@@ -37,6 +38,8 @@ order_book_side.v   sorted resting orders per side (insert/remove/reduce, N=8,
                                           parameterized by sort direction for bid vs. ask)
 matching_engine.v   messages + book state -> book updates / executions
                                           (orderFilled, orderResting, orderRejected)
+message_tx.v         report fields -> bytes   (sendMessageValid -> messageSent)
+uart_tx.v           bytes -> bits         (txByteValid/txByteData -> txByteConsumed)
 ```
 
 - **`uart_rx.v`** — RX-only port of the UART core from `tang-nano-9k-uart`,
@@ -58,6 +61,17 @@ matching_engine.v   messages + book state -> book updates / executions
   full or partial fills against one or more resting orders, and rests any
   unfilled remainder as a new order — or rejects it if that side's book is
   full.
+- **`uart_tx.v`** *(complete, tested)* — a byte-mover for the transmit
+  direction, the mirror image of `uart_rx.v`: accepts one byte at a time via
+  a `txByteValid`/`txByteData`/`txByteConsumed` handshake and serializes it
+  onto the line (start bit, 8 data bits, parity, stop bit), using the same
+  fractional-baud accumulator as the RX side. Ported down from an earlier,
+  more general showcase UART project.
+- **`message_tx.v`** *(complete, tested)* — the transmit-side mirror of
+  `message_rx.v`: given an order ID, outcome, price, and quantity, latches
+  them on a `sendMessageValid` pulse, computes a checksum, and streams the
+  resulting fixed-length report out through its own `uart_tx` instance one
+  byte at a time, asserting `messageSent` once the full frame has gone out.
 
 ### Why registers instead of BRAM for the order book
 
@@ -72,17 +86,18 @@ direct read, never a scan.
 
 ### Resource utilization
 
-Synthesized for the GW1NR-9C via Yosys (`synth_gowin`), the complete pipeline
-— UART RX, message framing, both order book sides with partial-fill support,
-and the full matching FSM — uses:
+Synthesized for the GW1NR-9C via Yosys (`synth_gowin`), the RX-through-matching
+pipeline — UART RX, message framing, both order book sides with partial-fill
+support, and the full matching FSM — uses:
 
 | Resource   | Used  | Available | Utilization |
 |------------|------:|----------:|-------------:|
 | Flip-flops |   718 |     6,480 |        ~11% |
 | LUTs       | 3,350 |     8,640 |        ~39% |
 
-Comfortable headroom remains for TX-side execution reporting and any future
-extensions.
+Comfortable headroom remains for the TX-side reporting path (`uart_tx.v` +
+`message_tx.v`, individually synthesis-checked but not yet re-measured as part
+of the whole assembled pipeline) and any future extensions.
 
 ## Message Format
 
@@ -207,7 +222,43 @@ the matching FSM includes explicit one-cycle wait states between issuing an
 operation and reading back its result.
 
 Three outcome flags report the result of each processed message:
-`orderFilled`, `orderResting`, `orderRejected`.
+`orderFilled`, `orderResting`, `orderRejected`. Wiring these into
+`message_tx.v` (feeding it the resolved order ID, outcome, price, and
+quantity) is the next integration step, not yet done.
+
+## TX Reporting Design
+
+`message_tx.v` is the transmit-side mirror of `message_rx.v`, producing a
+fixed-length, 10-byte execution report:
+
+| Field      | Bytes | Description                                      |
+|------------|:-----:|---------------------------------------------------|
+| Sentinel   |   1   | Same `0xAA` framing convention as the inbound format |
+| Msg Type   |   1   | Report-type identifier                            |
+| Order ID   |   2   | Which original order this report is about         |
+| Outcome    |   1   | Filled / Resting / Rejected (small enum, extensible) |
+| Price      |   2   | Echoed back so a downstream consumer needn't track it separately |
+| Quantity   |   2   | Meaning depends on outcome — see below             |
+| Checksum   |   1   | Same XOR convention as the inbound format          |
+
+`Quantity`'s meaning is outcome-dependent by design: for a fill, it's the
+(always-complete, given this project's current matching semantics) filled
+quantity; for a rest, it's the *remaining* resting quantity, which may be
+smaller than the original order if part of it matched before the remainder
+rested; for a reject, it's the original incoming quantity, since nothing
+happened. This distinction — remaining vs. original — matters for a
+downstream consumer (a planned Python dashboard, driven over the same serial
+link) that wants to track how much of an order is actually still live in the
+book.
+
+The module exposes a simple busy/reject contract rather than a queue: a
+`sendMessageValid` pulse received while a previous report is still
+transmitting asserts `sendWhileBusyError` and is otherwise ignored — the
+in-progress transmission completes undisturbed. A queue was considered and
+deliberately deferred: since report generation and order arrival share the
+same physical link and baud rate, the two are naturally paced against each
+other, and there's no concrete evidence yet that back-to-back reports can
+actually arrive faster than TX can drain them.
 
 ## Testing
 
@@ -352,6 +403,35 @@ result one cycle before the corresponding `order_book_side` operation had
 actually taken effect — found by checking actual book contents rather than
 trusting the engine's self-reported outcome flag.
 
+### `message_tx.v`
+
+`message_tx_tb.v` takes a different verification approach than the RX-side
+testbenches: rather than decoding raw bits by hand, it instantiates a second,
+already-thoroughly-tested `message_rx` (with its own `uart_rx`) purely as a
+"known-good reference receiver," wired directly to `message_tx`'s serial
+output. Each test drives `message_tx`'s five report-field inputs and a
+`sendMessageValid` pulse, waits (via a bounded polling task) for the
+transmission to complete, and then checks the reference receiver's decoded
+fields against what was sent — verifying the actual bit-level output, not
+just `message_tx`'s own self-reported `messageSent` flag.
+
+Coverage, all passing:
+
+- **Basic round trip** — a single report is sent and decodes correctly on
+  the reference receiver, with no framing/checksum errors on that end.
+- **`sendWhileBusyError`** — a stray send attempt roughly a fifth of the way
+  into an in-progress transmission is flagged, and the *original*
+  transmission is confirmed to complete undisturbed and decode correctly —
+  not just that the error flag lit up while something else silently broke.
+- **Back-to-back reports, no gap** — a second, distinct report is sent
+  immediately once the first completes, confirming the module returns
+  cleanly to `IDLE` with no extra settle time required.
+- **Asymmetric byte values** — a report using distinct, non-symmetric high
+  and low bytes in every multi-byte field, specifically to catch a
+  high/low byte-order swap that earlier, more coincidentally-shaped test
+  values could have missed entirely.
+
+
 ## Status
 
 - [x] `uart_rx.v` ported from `tang-nano-9k-uart`
@@ -363,7 +443,11 @@ trusting the engine's self-reported outcome flag.
       including partial-fill (reduce) support
 - [x] `matching_engine.v` — full/partial-fill matching FSM
 - [x] `matching_engine.v` testbench — all scenarios passing
-- [ ] TX-side execution reports
+- [x] `uart_tx.v` — ported and adapted TX byte-mover
+- [x] `message_tx.v` — TX-side execution report framing
+- [x] `message_tx.v` testbench — all scenarios passing
+- [ ] Wire `message_tx.v` into `matching_engine.v` so real order outcomes
+      actually get reported over the wire
 - [ ] Formal verification (SymbiYosys)
 
 ## Toolchain
