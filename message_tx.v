@@ -154,6 +154,14 @@ always @(posedge clk) begin
                 end
             end
         end
+        MTX_STATE_OUTCOME: begin
+            txByteValid <= 1;
+            txByteData <= outcome;
+            if (txByteConsumedEdge) begin
+                txByteValid <= 0;
+                mtxState <= MTX_STATE_PRICE;
+            end
+        end
     endcase
 end
 
