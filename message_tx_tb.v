@@ -244,6 +244,38 @@ module test_message_tx;
         end
 
 
+        // Test 4: asymmetric byte values to catch high/low byte-order swap bug 
+        sendMessageValid = 1;
+        msgType = 8'h01;
+        orderID = 16'hAB12;   // high byte 0xAB, low byte 0x12
+        outcome = 8'h02;
+        price = 16'hCD34;     // high byte 0xCD, low byte 0x34
+        quantity = 16'hEF56;  // high byte 0xEF, low byte 0x56
+
+        @(posedge clk);
+        #1;
+        sendMessageValid = 0;
+
+        wait_for_message_sent;
+
+        if (messageSent !== 1) begin
+            $display("FAIL: messageSent not asserted for asymmetric-value report");
+        end else if (rxMsgType !== 8'h01) begin
+            $display("FAIL: msgType decoded incorrectly. rxMsgType=%h", rxMsgType);
+        end else if (rxOrderID !== 16'hAB12) begin
+            $display("FAIL: orderID decoded incorrectly — possible high/low byte swap. rxOrderID=%h, expected 0xAB12", rxOrderID);
+        end else if (rxOutcome !== 8'h02) begin
+            $display("FAIL: outcome decoded incorrectly. rxOutcome=%h", rxOutcome);
+        end else if (rxPrice !== 16'hCD34) begin
+            $display("FAIL: price decoded incorrectly — possible high/low byte swap. rxPrice=%h, expected 0xCD34", rxPrice);
+        end else if (rxQuantity !== 16'hEF56) begin
+            $display("FAIL: quantity decoded incorrectly — possible high/low byte swap. rxQuantity=%h, expected 0xEF56", rxQuantity);
+        end else if (rxChecksumError === 1 || rxSentinelError === 1 || sendWhileBusyError === 1) begin
+            $display("FAIL: an error flag was incorrectly asserted for a valid asymmetric-value report");
+        end else begin
+            $display("PASS: asymmetric byte values correctly transmitted and decoded — no high/low byte-order bug present");
+        end
+
         $finish;
     end
 
