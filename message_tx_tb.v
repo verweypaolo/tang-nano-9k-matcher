@@ -48,7 +48,7 @@ module test_message_tx;
     wire rxChecksumError;
     wire [7:0] rxMsgType;
     wire [15:0] rxOrderID;
-    wire [7:0] rxSide;
+    wire [7:0] rxOutcome;
     wire [15:0] rxPrice;
     wire [15:0] rxQuantity;
 
@@ -66,11 +66,22 @@ module test_message_tx;
         .checksumError(rxChecksumError),
         .msgType(rxMsgType),
         .orderID(rxOrderID),
-        .side(rxSide),
+        .side(rxOutcome),
         .price(rxPrice),
         .quantity(rxQuantity)
     );
 
+    task wait_for_message_sent;
+    // allow full round trip transmission before checking correctness
+        integer guard;
+        begin
+            guard = 0;
+            while (!messageSent && !sendWhileBusyError && guard < 2000) begin
+                @(posedge clk);
+                guard = guard + 1;
+            end
+        end
+    endtask
 
     initial clk = 0;
     always #5 clk = !clk;
@@ -87,6 +98,43 @@ module test_message_tx;
     initial begin
         $dumpfile("message_tx_tb.vcd"); // output waveform file
         $dumpvars(0, test_message_tx);    // 0 = dump all levels of hierarchy, starting from this module
+    end
+
+    initial begin
+        @(posedge clk);
+        #1;
+
+        // Test 1: a single report round-trips correctly through message_tx -> uart_tx -> uart_rx -> message_rx
+        sendMessageValid = 1;
+        msgType = 8'h01;
+        orderID = 16'h0064;   // 100
+        outcome = 8'h01;      // FILLED
+        price = 16'h0032;     // 50
+        quantity = 16'h000A;  // 10
+
+        @(posedge clk);
+        #1;
+        sendMessageValid = 0;
+
+        wait_for_message_sent;
+
+        if (messageSent !== 1) begin
+            $display("FAIL: messageSent not asserted after sending a report");
+        end else if (sendWhileBusyError === 1) begin
+            $display("FAIL: sendWhileBusyError incorrectly asserted during a normal single send");
+        end else if (rxMessageReady !== 1) begin
+            $display("FAIL: reference receiver did not assert messageReady");
+        end else if (rxMsgType !== 8'h01 || rxOrderID !== 16'h0064 || rxOutcome !== 8'h01
+                || rxPrice !== 16'h0032 || rxQuantity !== 16'h000A) begin
+            $display("FAIL: decoded fields do not match sent report. msgType=%h orderID=%h outcome=%h price=%h quantity=%h",
+                    rxMsgType, rxOrderID, rxOutcome, rxPrice, rxQuantity);
+        end else if (rxSentinelError === 1 || rxChecksumError === 1 || rxTimeOutError === 1) begin
+            $display("FAIL: reference receiver flagged an error decoding a valid transmission");
+        end else begin
+            $display("PASS: report correctly round-tripped through message_tx and decoded by reference receiver");
+        end
+
+        $finish;
     end
 
 endmodule
