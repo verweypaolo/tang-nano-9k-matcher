@@ -83,6 +83,20 @@ module test_message_tx;
         end
     endtask
 
+    task wait_for_completion_only;
+        // used when we expect sendWhileBusyError to have already fired earlier
+        // and we specifically want to confirm the transmission still completes
+        integer guard;
+        begin
+            guard = 0;
+            while (!messageSent && guard < 2000) begin
+                @(posedge clk);
+                guard = guard + 1;
+            end
+        end
+    endtask
+
+
     initial clk = 0;
     always #5 clk = !clk;
 
@@ -133,6 +147,51 @@ module test_message_tx;
         end else begin
             $display("PASS: report correctly round-tripped through message_tx and decoded by reference receiver");
         end
+
+
+        // Test 2: sending while busy should be flagged and ignored, the in-progress transmission must complete undisturbed
+        sendMessageValid = 1;
+        msgType = 8'h01;
+        orderID = 16'h1234;
+        outcome = 8'h02;      // RESTING
+        price = 16'h5678;
+        quantity = 16'h0009;
+
+        @(posedge clk);
+        #1;
+        sendMessageValid = 0;
+
+        // wait some cycles into the transmission (well before it finishes), then attempt a second transmission
+        repeat (20) @(posedge clk);
+        #1;
+
+        sendMessageValid = 1;
+        msgType = 8'h99;     
+        orderID = 16'hFFFF;
+        outcome = 8'h03;
+        price = 16'hAAAA;
+        quantity = 16'hBBBB;
+
+        @(posedge clk);
+        #1;
+        sendMessageValid = 0;
+
+        wait_for_completion_only;
+
+        if (sendWhileBusyError !== 1) begin
+            $display("FAIL: sendWhileBusyError not asserted for a send attempt while busy");
+        end else if (messageSent !== 1) begin
+            $display("FAIL: messageSent not asserted — original in-progress transmission should still complete");
+        end else if (rxMsgType !== 8'h01 || rxOrderID !== 16'h1234 || rxOutcome !== 8'h02
+                || rxPrice !== 16'h5678 || rxQuantity !== 16'h0009) begin
+            $display("FAIL: decoded fields do not match the ORIGINAL report — stray send may have corrupted transmission. msgType=%h orderID=%h outcome=%h price=%h quantity=%h",
+                    rxMsgType, rxOrderID, rxOutcome, rxPrice, rxQuantity);
+        end else if (rxChecksumError === 1 || rxSentinelError === 1) begin
+            $display("FAIL: reference receiver flagged an error — stray send may have corrupted the frame");
+        end else begin
+            $display("PASS: stray send-while-busy correctly flagged, original transmission completed undisturbed");
+        end
+
 
         $finish;
     end
