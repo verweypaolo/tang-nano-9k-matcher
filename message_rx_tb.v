@@ -1,7 +1,7 @@
 `default_nettype none
 `timescale 1ns/1ps
 
-module test;
+module test_message_rx;
 
     reg clk;
     reg uart_rx_line;
