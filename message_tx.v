@@ -162,6 +162,19 @@ always @(posedge clk) begin
                 mtxState <= MTX_STATE_PRICE;
             end
         end
+        MTX_STATE_PRICE: begin
+            txByteValid <= 1;
+            txByteData <= (byteCounter == 0) ? price[15:8] : price[7:0];
+            if (txByteConsumedEdge) begin
+                txByteValid <= 0;
+                if (byteCounter == 1) begin
+                    byteCounter <= 0;
+                    mtxState <= MTX_STATE_QUANTITY;
+                end else begin
+                    byteCounter <= byteCounter + 1;
+                end
+            end
+        end
     endcase
 end
 
