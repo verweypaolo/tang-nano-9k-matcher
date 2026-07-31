@@ -28,6 +28,11 @@ localparam MSG_TYPE_NEW_ORDER = 8'h01;
 localparam MSG_SIDE_BUY = 8'h00;
 localparam MSG_SIDE_SELL = 8'h01;
 
+localparam RPT_FILLED = 8'h01;
+localparam RPT_RESTING = 8'h02;
+localparam RPT_REJECTED = 8'h03;
+
+localparam RPT_MESSAGE_TYPE_EXECUTION = 8'h01; // indicates type of transmitted report (execution)
 
 // message_rx outputs
 wire messageReady;
@@ -70,6 +75,11 @@ reg [15:0] reduceAmountBid, reduceAmountAsk;
 reg [15:0] globalSeqNum; // increment once per accepted NEW_ORDER
 reg [15:0] remainingQuantity;
 reg [3:0] matchLoopCount;
+
+// to store pending order incase of back-to-back orders causing a timing issue
+reg [7:0] pendingOutcome;
+reg [15:0] pendingOrderID, pendingPrice, pendingQuantity;
+reg reportPending;
 
 localparam MATCH_LOOP_MAX = N;
 
@@ -213,6 +223,12 @@ initial begin
     orderFilled = 0;
     orderResting = 0;
     orderRejected = 0;
+
+    pendingOutcome = 0;
+    pendingOrderID = 0;
+    pendingPrice = 0;
+    pendingQuantity = 0;
+    reportPending = 0;
 end
 
 always @(posedge clk) begin
@@ -227,6 +243,18 @@ always @(posedge clk) begin
     removeValidAsk <= 0;
     reduceValidBid <= 0;
     reduceValidAsk <= 0;
+    sendMessageValid <= 0;
+
+    // drain pending report the moment message_tx frees up (independent of FSM)
+    if (reportPending && !txBusy) begin
+        sendMessageValid <= 1;
+        msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
+        orderIDOut <= pendingOrderID;
+        outcomeOut <= pendingOutcome;
+        priceOut <= pendingPrice;
+        quantityOut <= pendingQuantity;
+        reportPending <= 0;
+    end
 
     case (meState)
         ME_STATE_IDLE: begin
@@ -309,6 +337,20 @@ always @(posedge clk) begin
             // otherwise orderFilled is asserted one cycle BEFORE the book updates.
             orderFilled <= 1;
             meState <= ME_STATE_IDLE;
+            if (!txBusy && !reportPending) begin
+                sendMessageValid <= 1;
+                msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
+                orderIDOut <= orderID;
+                outcomeOut <= RPT_FILLED;
+                priceOut <= price;
+                quantityOut <= quantity;
+            end else begin
+                pendingOrderID <= orderID;
+                pendingOutcome <= RPT_FILLED;
+                pendingPrice <= price;
+                pendingQuantity <= quantity;
+                reportPending <= 1;
+            end
         end
         ME_STATE_REST: begin
             if (side == MSG_SIDE_BUY) begin
@@ -326,9 +368,41 @@ always @(posedge clk) begin
         ME_STATE_REST_CONFIRM: begin
             if ((side == MSG_SIDE_BUY && insertFullErrorBid) || (side == MSG_SIDE_SELL && insertFullErrorAsk)) begin
                 orderRejected <= 1;
+
+                if (!txBusy && !reportPending) begin
+                    sendMessageValid <= 1;
+                    msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
+                    orderIDOut <= orderID;
+                    outcomeOut <= RPT_REJECTED;
+                    priceOut <= price;
+                    quantityOut <= quantity;
+                end else begin
+                    // either busy, or pending slot is being freed by the drain this very cycle — safe to buffer
+                    pendingOrderID <= orderID;
+                    pendingOutcome <= RPT_REJECTED;
+                    pendingPrice <= price;
+                    pendingQuantity <= quantity;
+                    reportPending <= 1;
+                end
             end else begin
                 orderResting <= 1;
                 globalSeqNum <= globalSeqNum + 1;
+
+                if (!txBusy && !reportPending) begin
+                    sendMessageValid <= 1;
+                    msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
+                    orderIDOut <= orderID;
+                    outcomeOut <= RPT_RESTING;
+                    priceOut <= price;
+                    quantityOut <= remainingQuantity;
+                end else begin
+                    // either busy, or pending slot is being freed by the drain this very cycle — safe to buffer
+                    pendingOrderID <= orderID;
+                    pendingOutcome <= RPT_RESTING;
+                    pendingPrice <= price;
+                    pendingQuantity <= remainingQuantity;
+                    reportPending <= 1;
+                end
             end
             meState <= ME_STATE_IDLE;
         end
