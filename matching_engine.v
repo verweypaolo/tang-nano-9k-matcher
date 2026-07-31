@@ -12,6 +12,7 @@ module matching_engine
 (
     input clk,
     input uart_rx_line,
+    output uart_tx_line,
 
     output reg orderFilled,
     output reg orderResting,
@@ -33,6 +34,16 @@ wire messageReady;
 wire sentinelError, timeOutError, checksumError;
 wire [7:0] msgType, side;
 wire [15:0] orderID, price, quantity;
+
+// message_tx inputs
+reg sendMessageValid;
+reg [7:0] msgTypeOut, outcomeOut;
+reg [15:0] orderIDOut, priceOut, quantityOut;
+
+// message_tx outputs
+wire messageSent;
+wire txBusy;
+wire sendWhileBusyError;
 
 // bid book outputs
 wire simultaneousOpErrorBid, insertFullErrorBid, removeEmptyErrorBid, reduceEmptyErrorBid, overReduceErrorBid;
@@ -81,6 +92,26 @@ message_rx
     .side(side),
     .price(price),
     .quantity(quantity)
+);
+
+message_tx
+#(
+    .SENTINEL(SENTINEL),
+    .BAUD_DIVISOR(BAUD_DIVISOR),
+    .ACC_INCREMENT(ACC_INCREMENT),
+    .ACC_MODULUS(ACC_MODULUS)
+) msg_tx_inst (
+    .clk(clk),
+    .uart_tx_line(uart_tx_line),
+    .sendMessageValid(sendMessageValid),
+    .msgTypeIn(msgTypeOut),
+    .orderIDIn(orderIDOut),
+    .outcomeIn(outcomeOut),
+    .priceIn(priceOut),
+    .quantityIn(quantityOut),
+    .messageSent(messageSent),
+    .txBusy(txBusy),
+    .sendWhileBusyError(sendWhileBusyError)
 );
 
 order_book_side
@@ -161,6 +192,13 @@ initial begin
     reduceValidAsk = 0;
     reduceAmountBid = 0;
     reduceAmountAsk = 0;
+
+    sendMessageValid = 0;
+    msgTypeOut = 0;
+    orderIDOut = 0;
+    outcomeOut = 0;
+    priceOut = 0;
+    quantityOut = 0;
 
     remainingQuantity = 0;
     matchLoopCount = 0;
