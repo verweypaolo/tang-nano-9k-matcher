@@ -31,6 +31,7 @@ localparam MSG_SIDE_SELL = 8'h01;
 localparam RPT_FILLED = 8'h01;
 localparam RPT_RESTING = 8'h02;
 localparam RPT_REJECTED = 8'h03;
+localparam RPT_INVALID = 8'h04; // malformed message (bad msgType or bad side)
 
 localparam RPT_MESSAGE_TYPE_EXECUTION = 8'h01; // indicates type of transmitted report (execution)
 
@@ -272,6 +273,21 @@ always @(posedge clk) begin
             if (msgType != MSG_TYPE_NEW_ORDER) begin
                 wrongMsgType <= 1;
                 meState <= ME_STATE_IDLE;
+
+                if (!txBusy && !reportPending) begin
+                    sendMessageValid <= 1;
+                    msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
+                    orderIDOut <= orderID;
+                    outcomeOut <= RPT_INVALID;
+                    priceOut <= price;
+                    quantityOut <= quantity;
+                end else begin
+                    pendingOrderID <= orderID;
+                    pendingOutcome <= RPT_INVALID;
+                    pendingPrice <= price;
+                    pendingQuantity <= quantity;
+                    reportPending <= 1;
+                end
             end else if (side == MSG_SIDE_BUY || side == MSG_SIDE_SELL) begin
                 remainingQuantity <= quantity;
                 matchLoopCount <= 0;
@@ -283,6 +299,21 @@ always @(posedge clk) begin
             end else begin
                 wrongMsgSide <= 1;
                 meState <= ME_STATE_IDLE;
+
+                if (!txBusy && !reportPending) begin
+                    sendMessageValid <= 1;
+                    msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
+                    orderIDOut <= orderID;
+                    outcomeOut <= RPT_INVALID;
+                    priceOut <= price;
+                    quantityOut <= quantity;
+                end else begin
+                    pendingOrderID <= orderID;
+                    pendingOutcome <= RPT_INVALID;
+                    pendingPrice <= price;
+                    pendingQuantity <= quantity;
+                    reportPending <= 1;
+                end
             end
         end
         ME_STATE_MATCH_LOOP: begin

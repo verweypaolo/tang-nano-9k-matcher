@@ -407,18 +407,43 @@ module test_matching_engine;
         // Test 5: fill the ask book to full, then confirm the next order is rejected
         send_order(8'h01, 16'h003C, 8'h01, 16'h0032, 16'h000A); // SELL id=60, price=50, qty=10
         wait_for_outcome;
+
+        // spot-check the first fill order's report — simple rest, same pattern as Test 1
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 5's first fill order");
+        end else if (refOrderID !== 16'h003C || refOutcome !== 8'h02 /* RPT_RESTING */
+                || refPrice !== 16'h0032 || refQuantity !== 16'h000A) begin
+            $display("FAIL: Test 5 first fill report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else begin
+            $display("PASS: Test 5 first fill order report correct (spot check)");
+        end
+
         send_order(8'h01, 16'h003D, 8'h01, 16'h0046, 16'h000A); // SELL id=61, price=70, qty=10
         wait_for_outcome;
+        wait_for_report;
+
         send_order(8'h01, 16'h003E, 8'h01, 16'h0050, 16'h000A); // SELL id=62, price=80, qty=10
         wait_for_outcome;
+        wait_for_report;
+
         send_order(8'h01, 16'h003F, 8'h01, 16'h005A, 16'h000A); // SELL id=63, price=90, qty=10
         wait_for_outcome;
+        wait_for_report;
+
         send_order(8'h01, 16'h0040, 8'h01, 16'h0028, 16'h000A); // SELL id=64, price=40, qty=10
         wait_for_outcome;
+        wait_for_report;
+
         send_order(8'h01, 16'h0041, 8'h01, 16'h0019, 16'h000A); // SELL id=65, price=25, qty=10
         wait_for_outcome;
+        wait_for_report;
+        
         send_order(8'h01, 16'h0042, 8'h01, 16'h000F, 16'h000A); // SELL id=66, price=15, qty=10
         wait_for_outcome;
+        wait_for_report;
 
         if (dut.ask_book.valid !== 8'b11111111) begin
             $display("FAIL: ask book valid mask = %b, expected full 8'b11111111 before reject test", dut.ask_book.valid);
@@ -446,6 +471,21 @@ module test_matching_engine;
             $display("PASS: orderRejected correctly asserted when book was full, book contents unchanged");
         end
         print_books;
+
+        // verify the REJECTED report
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 5's rejected order");
+        end else if (refOrderID !== 16'h0043 || refOutcome !== 8'h03 /* RPT_REJECTED */
+                || refPrice !== 16'h003C || refQuantity !== 16'h0005) begin
+            $display("FAIL: Test 5 rejected-order report incorrect. orderID=%h outcome=%h price=%h quantity=%h, expected outcome=REJECTED quantity=0x0005 (original incoming, since nothing happened)",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else if (refChecksumError === 1 || refSentinelError === 1) begin
+            $display("FAIL: Test 5 rejected-order report had a framing/checksum error");
+        end else begin
+            $display("PASS: Test 5 rejected-order report correctly reflects REJECTED at original incoming quantity");
+        end
 
         
         // Test 6: an unrecognized msgType should be flagged and dropped, no book interaction
