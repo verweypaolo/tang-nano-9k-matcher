@@ -75,14 +75,24 @@ module test_matching_engine;
     end
 
     reg [15:0] seqBefore;
+    reg reportSeenDuringWait;
+    integer i;
 
     initial clk = 0;
     always #5 clk = ~clk;
+
+    reg pendingBufferWasUsed;
+    always @(posedge clk) begin
+        if (dut.reportPending) pendingBufferWasUsed <= 1;
+    end
 
     initial begin
         uart_rx_line = 1;
         seqBefore = 0;
         refMessageReadyPrev = 0;
+        reportSeenDuringWait = 0;
+        i = 0;
+        pendingBufferWasUsed = 0;
     end
 
 
@@ -162,6 +172,8 @@ module test_matching_engine;
     task wait_for_report;
         integer guard;
         begin
+            @(posedge clk); // unconditionally advance one cycle first, so a leftover pulse from a previous call
+                            // (still visible in this same instant) can never be misread as a fresh edge
             guard = 0;
             while (!refMessageReadyEdge && guard < 2000) begin
                 @(posedge clk);
@@ -572,8 +584,7 @@ module test_matching_engine;
         end
         print_books;
 
-        // verify the report — should be RPT_FILLED at the ORIGINAL quantity (75),
-        // not any intermediate remainingQuantity value from the walk
+        // verify the report, should be RPT_FILLED at the ORIGINAL quantity (75)
         wait_for_report;
 
         if (!refMessageReady) begin
@@ -585,7 +596,7 @@ module test_matching_engine;
         end else if (refChecksumError === 1 || refSentinelError === 1) begin
             $display("FAIL: Test 8 report had a framing/checksum error");
         end else begin
-            $display("PASS: Test 8 report correctly reflects FILLED at original quantity 75, unaffected by the 7-iteration walk internals");
+            $display("PASS: Test 8 report correctly reflects FILLED at original quantity 75, unaffected by the walk");
         end
 
 
@@ -606,6 +617,8 @@ module test_matching_engine;
         end
         print_books;
 
+        wait_for_report;
+
 
         // Test 10: dropped messages (wrongMsgType, wrongMsgSide) must not
         // increment globalSeqNum — only genuinely resolved orders should
@@ -613,6 +626,7 @@ module test_matching_engine;
 
         send_order(8'h02, 16'h004A, 8'h00, 16'h0064, 16'h0005); // bad msgType — should be dropped
         wait_for_outcome;
+        wait_for_report;
 
         send_order(8'h01, 16'h004B, 8'h02, 16'h0064, 16'h0005); // bad side — should be dropped
         wait_for_outcome;
@@ -622,6 +636,7 @@ module test_matching_engine;
         end else begin
             $display("PASS: globalSeqNum correctly unchanged after wrongMsgType and wrongMsgSide drops");
         end
+        wait_for_report;
 
         // confirm a subsequent valid order still increments by exactly one,
         // not by some leftover/miscounted amount
@@ -635,6 +650,7 @@ module test_matching_engine;
             $display("PASS: globalSeqNum correctly incremented by exactly one for the valid order, unaffected by prior drops");
         end
         print_books;
+        wait_for_report;
 
 
         // Test 11: matchLoopOverrunError: this condition is unreachable the real interface (order_book_side 
@@ -668,8 +684,23 @@ module test_matching_engine;
         end
         print_books;
 
+        // make sure no report sent
+        reportSeenDuringWait = 0;
+        for (i = 0; i < 2000; i = i + 1) begin
+            @(posedge clk);
+            if (refMessageReadyEdge) reportSeenDuringWait = 1;
+        end
+
+        if (reportSeenDuringWait || dut.reportPending) begin
+            $display("FAIL: a report was unexpectedly sent (or queued) for a matchLoopOverrunError-aborted order");
+        end else begin
+            $display("PASS: correctly no report sent for an aborted, defensively-guarded order");
+        end
+
         // Test 12: back-to-back messages, no gap, the second order's bytes begin streaming immediately after the first's 
         // checksum byte, with no wait_for_outcome in between
+        pendingBufferWasUsed = 0;
+
         send_order(8'h01, 16'h0050, 8'h01, 16'h006E, 16'h000F); // SELL id=80, price=110, qty=15 non-crossing, rests
         send_order(8'h01, 16'h0051, 8'h01, 16'h0078, 16'h0014); // SELL id=81, price=120, qty=20 non-crossing, rests, sent immediately after
 
@@ -690,6 +721,38 @@ module test_matching_engine;
             $display("PASS: back-to-back messages with no gap both correctly processed and resting in sorted order");
         end
         print_books;
+
+        // verify the first report
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 12's first back-to-back order");
+        end else if (refOrderID !== 16'h0050 || refOutcome !== 8'h02 /* RPT_RESTING */
+                || refPrice !== 16'h006E || refQuantity !== 16'h000F) begin
+            $display("FAIL: Test 12 first report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else begin
+            $display("PASS: Test 12 first back-to-back report correctly transmitted and decoded");
+        end
+
+        // verify the second report, and that the pending buffer was actually used to get it there
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 12's second back-to-back order");
+        end else if (refOrderID !== 16'h0051 || refOutcome !== 8'h02 /* RPT_RESTING */
+                || refPrice !== 16'h0078 || refQuantity !== 16'h0014) begin
+            $display("FAIL: Test 12 second report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else begin
+            $display("PASS: Test 12 second back-to-back report correctly transmitted and decoded");
+        end
+
+        if (!pendingBufferWasUsed) begin
+            $display("FAIL: pending buffer was never used — back-to-back timing did not exercise the intended overlap scenario");
+        end else begin
+            $display("PASS: pending buffer was exercised as expected, confirming back-to-back reports correctly overlap given RX/TX timing");
+        end
 
         $finish;
     end
