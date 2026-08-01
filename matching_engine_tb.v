@@ -505,6 +505,20 @@ module test_matching_engine;
         end
         print_books;
 
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 6's invalid-msgType order");
+        end else if (refOrderID !== 16'h0044 || refOutcome !== 8'h04 /* RPT_INVALID */
+                || refPrice !== 16'h0064 || refQuantity !== 16'h0005) begin
+            $display("FAIL: Test 6 report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else if (refChecksumError === 1 || refSentinelError === 1) begin
+            $display("FAIL: Test 6 report had a framing/checksum error");
+        end else begin
+            $display("PASS: Test 6 correctly reports RPT_INVALID for a malformed msgType");
+        end
+
 
         // Test 7: an unrecognized side value should be flagged and dropped, no book interaction
         send_order(8'h01, 16'h0045, 8'h02, 16'h0064, 16'h0005); // valid NEW_ORDER, but side=0x02 (neither BUY nor SELL)
@@ -522,6 +536,20 @@ module test_matching_engine;
             $display("PASS: wrongMsgSide correctly asserted, no book interaction occurred");
         end
         print_books;
+
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 7's invalid-side order");
+        end else if (refOrderID !== 16'h0045 || refOutcome !== 8'h04 /* RPT_INVALID */
+                || refPrice !== 16'h0064 || refQuantity !== 16'h0005) begin
+            $display("FAIL: Test 7 report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else if (refChecksumError === 1 || refSentinelError === 1) begin
+            $display("FAIL: Test 7 report had a framing/checksum error");
+        end else begin
+            $display("PASS: Test 7 correctly reports RPT_INVALID for a malformed side value");
+        end
 
 
         // Test 8: multi-iteration match walk: one incoming order fully drains the entire 8-entry ask book across 7 
@@ -543,6 +571,22 @@ module test_matching_engine;
             $display("PASS: multi-iteration match walk correctly drained all 8 resting ask orders");
         end
         print_books;
+
+        // verify the report — should be RPT_FILLED at the ORIGINAL quantity (75),
+        // not any intermediate remainingQuantity value from the walk
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 8's multi-iteration walk order");
+        end else if (refOrderID !== 16'h0046 || refOutcome !== 8'h01 /* RPT_FILLED */
+                || refPrice !== 16'h0064 || refQuantity !== 16'h004B) begin
+            $display("FAIL: Test 8 report incorrect. orderID=%h outcome=%h price=%h quantity=%h, expected FILLED quantity=0x004B (75, original)",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else if (refChecksumError === 1 || refSentinelError === 1) begin
+            $display("FAIL: Test 8 report had a framing/checksum error");
+        end else begin
+            $display("PASS: Test 8 report correctly reflects FILLED at original quantity 75, unaffected by the 7-iteration walk internals");
+        end
 
 
         // Test 9: globalSeqNum increments exactly once per resolved order,
