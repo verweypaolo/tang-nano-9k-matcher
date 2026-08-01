@@ -11,6 +11,7 @@ module test_matching_engine;
 
     reg clk;
     reg uart_rx_line;
+    wire uart_tx_line;
 
     wire orderFilled;
     wire orderResting;
@@ -31,6 +32,7 @@ module test_matching_engine;
     ) dut (
         .clk(clk),
         .uart_rx_line(uart_rx_line),
+        .uart_tx_line(uart_tx_line),
         .orderFilled(orderFilled),
         .orderResting(orderResting),
         .orderRejected(orderRejected),
@@ -38,6 +40,39 @@ module test_matching_engine;
         .wrongMsgSide(wrongMsgSide),
         .matchLoopOverrunError(matchLoopOverrunError)
     );
+
+    // add a message_rx instance to decode what is transmitted so we can check correctness
+    wire refMessageReady;
+    wire refSentinelError, refTimeOutError, refChecksumError;
+    wire [7:0] refMsgType, refOutcome;
+    wire [15:0] refOrderID, refPrice, refQuantity;
+
+    message_rx #(
+        .SENTINEL(SENTINEL),
+        .BAUD_DIVISOR(BAUD_DIVISOR),
+        .ACC_INCREMENT(ACC_INCREMENT),
+        .ACC_MODULUS(ACC_MODULUS)
+    ) ref_rx (
+        .clk(clk),
+        .uart_rx(uart_tx_line), // output piped into input
+        .messageReady(refMessageReady),
+        .sentinelError(refSentinelError),
+        .timeOutError(refTimeOutError),
+        .checksumError(refChecksumError),
+        .msgType(refMsgType),
+        .orderID(refOrderID),
+        .side(refOutcome),
+        .price(refPrice),
+        .quantity(refQuantity)
+    );
+    
+    
+    // construct a messageReady edge to pin point waiting time for a report to round trip
+    reg refMessageReadyPrev;
+    wire refMessageReadyEdge = refMessageReady & !refMessageReadyPrev;
+    always @(posedge clk) begin
+        refMessageReadyPrev <= refMessageReady;
+    end
 
     reg [15:0] seqBefore;
 
@@ -47,6 +82,7 @@ module test_matching_engine;
     initial begin
         uart_rx_line = 1;
         seqBefore = 0;
+        refMessageReadyPrev = 0;
     end
 
 
@@ -123,6 +159,17 @@ module test_matching_engine;
         end
     endtask
 
+    task wait_for_report;
+        integer guard;
+        begin
+            guard = 0;
+            while (!refMessageReadyEdge && guard < 2000) begin
+                @(posedge clk);
+                guard = guard + 1;
+            end
+        end
+    endtask
+
     task print_books;
         integer k;
         begin
@@ -187,6 +234,21 @@ module test_matching_engine;
         end
         print_books;
 
+        // verify the corresponding execution report
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 1's resting order");
+        end else if (refOrderID !== 16'h0001 || refOutcome !== 8'h02 /* RPT_RESTING */
+                || refPrice !== 16'h0064 || refQuantity !== 16'h000A) begin
+            $display("FAIL: Test 1 report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else if (refChecksumError === 1 || refSentinelError === 1) begin
+            $display("FAIL: Test 1 report had a framing/checksum error");
+        end else begin
+            $display("PASS: Test 1 report correctly transmitted and decoded");
+        end
+
 
         // Test 2: exact-match full fill, resting order's quantity exactly equals the incoming order's quantity
         send_order(8'h01, 16'h001E, 8'h01, 16'h0064, 16'h000A); // SELL id=30, price=100, qty=10
@@ -205,6 +267,21 @@ module test_matching_engine;
         end
         print_books;
 
+        // verify the corresponding execution report
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 2's exact-match fill");
+        end else if (refOrderID !== 16'h001E || refOutcome !== 8'h01 /* RPT_FILLED */
+                || refPrice !== 16'h0064 || refQuantity !== 16'h000A) begin
+            $display("FAIL: Test 2 report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else if (refChecksumError === 1 || refSentinelError === 1) begin
+            $display("FAIL: Test 2 report had a framing/checksum error");
+        end else begin
+            $display("PASS: Test 2 report correctly transmitted and decoded");
+        end
+
 
         // Test 3: full match with leftover; resting order fully consumed,
         // unfilled remainder rests on the incoming order's own side
@@ -212,6 +289,21 @@ module test_matching_engine;
         wait_for_outcome;
 
         print_books;
+
+        // verify the report for the first order — simple rest, no prior match
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 3's first (simple resting) order");
+        end else if (refOrderID !== 16'h0028 || refOutcome !== 8'h02 /* RPT_RESTING */
+                || refPrice !== 16'h0064 || refQuantity !== 16'h0005) begin
+            $display("FAIL: Test 3 first report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else if (refChecksumError === 1 || refSentinelError === 1) begin
+            $display("FAIL: Test 3 first report had a framing/checksum error");
+        end else begin
+            $display("PASS: Test 3 first report correctly reflects simple rest, quantity unchanged at original value");
+        end
 
         send_order(8'h01, 16'h0029, 8'h00, 16'h0064, 16'h000C); // BUY id=41, price=100, qty=12
         wait_for_outcome;
@@ -235,6 +327,21 @@ module test_matching_engine;
         end
         print_books;
 
+        // verify the report for the second order, quantity should reflect remainingQuantity (7), NOT the original 12
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 3's second (match-then-rest) order");
+        end else if (refOrderID !== 16'h0029 || refOutcome !== 8'h02 /* RPT_RESTING */
+                || refPrice !== 16'h0064 || refQuantity !== 16'h0007) begin
+            $display("FAIL: Test 3 second report incorrect. orderID=%h outcome=%h price=%h quantity=%h, expected quantity=0x0007 (remaining, not original 12)",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else if (refChecksumError === 1 || refSentinelError === 1) begin
+            $display("FAIL: Test 3 second report had a framing/checksum error");
+        end else begin
+            $display("PASS: Test 3 second report correctly reflects REMAINING quantity (7), not original incoming quantity (12)");
+        end
+
 
         // Test 4: partial match, incoming fully filled; resting order is
         // larger than the incoming order, so it gets reduced rather than removed
@@ -242,6 +349,21 @@ module test_matching_engine;
         wait_for_outcome;
 
         print_books;
+
+        // verify the report for the first order
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 4's first (simple resting) order");
+        end else if (refOrderID !== 16'h0032 || refOutcome !== 8'h02 /* RPT_RESTING */
+                || refPrice !== 16'h0064 || refQuantity !== 16'h000D) begin
+            $display("FAIL: Test 4 first report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else if (refChecksumError === 1 || refSentinelError === 1) begin
+            $display("FAIL: Test 4 first report had a framing/checksum error");
+        end else begin
+            $display("PASS: Test 4 first report correctly reflects remaining rest at remaining quantity 13");
+        end
 
         send_order(8'h01, 16'h0033, 8'h00, 16'h0064, 16'h0008); // BUY id=51, price=100, qty=8
         wait_for_outcome;
@@ -265,6 +387,21 @@ module test_matching_engine;
             $display("PASS: resting order correctly reduced (not removed), incoming order fully filled");
         end
         print_books;
+
+        // verify the report for the second order: this should be RPT_FILLED at the ORIGINAL incoming quantity (8)?
+        wait_for_report;
+
+        if (!refMessageReady) begin
+            $display("FAIL: no report received for Test 4's second (reduce-fill) order");
+        end else if (refOrderID !== 16'h0033 || refOutcome !== 8'h01 /* RPT_FILLED */
+                || refPrice !== 16'h0064 || refQuantity !== 16'h0008) begin
+            $display("FAIL: Test 4 second report incorrect. orderID=%h outcome=%h price=%h quantity=%h, expected outcome=FILLED quantity=0x0008 (original incoming, not resting-side remainder)",
+                    refOrderID, refOutcome, refPrice, refQuantity);
+        end else if (refChecksumError === 1 || refSentinelError === 1) begin
+            $display("FAIL: Test 4 second report had a framing/checksum error");
+        end else begin
+            $display("PASS: Test 4 second report correctly reflects FILLED at original incoming quantity (8), independent of the reduce that happened on the book");
+        end
 
 
         // Test 5: fill the ask book to full, then confirm the next order is rejected
