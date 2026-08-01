@@ -36,8 +36,9 @@ message_rx.v        bytes -> messages    (messageReady, sentinelError, timeOutEr
                                           checksumError, decoded order fields)
 order_book_side.v   sorted resting orders per side (insert/remove/reduce, N=8,
                                           parameterized by sort direction for bid vs. ask)
-matching_engine.v   messages + book state -> book updates / executions
-                                          (orderFilled, orderResting, orderRejected)
+matching_engine.v   messages + book state -> book updates / executions -> reports
+                                          (orderFilled, orderResting, orderRejected,
+                                          wrongMsgType, wrongMsgSide)
 message_tx.v         report fields -> bytes   (sendMessageValid -> messageSent)
 uart_tx.v           bytes -> bits         (txByteValid/txByteData -> txByteConsumed)
 ```
@@ -55,12 +56,14 @@ uart_tx.v           bytes -> bits         (txByteValid/txByteData -> txByteConsu
   order), and reduce (partial consumption of the top order's quantity, for
   partial fills). Two instances of this module (one per side) are
   instantiated by the matching engine.
-- **`matching_engine.v`** *(complete, tested)* — instantiates `message_rx`
-  and both `order_book_side` instances. On each `messageReady` pulse, routes
-  the order to the correct side, walks the opposite side's book to resolve
-  full or partial fills against one or more resting orders, and rests any
-  unfilled remainder as a new order — or rejects it if that side's book is
-  full.
+- **`matching_engine.v`** *(complete, tested, fully wired end-to-end)* —
+  instantiates `message_rx`, `message_tx`, and both `order_book_side`
+  instances. On each `messageReady` pulse, routes the order to the correct
+  side, walks the opposite side's book to resolve full or partial fills
+  against one or more resting orders, rests any unfilled remainder as a new
+  order (or rejects it if that side's book is full), and transmits an
+  execution report for every outcome via `message_tx` — including malformed
+  messages, which are reported back rather than silently dropped.
 - **`uart_tx.v`** *(complete, tested)* — a byte-mover for the transmit
   direction, the mirror image of `uart_rx.v`: accepts one byte at a time via
   a `txByteValid`/`txByteData`/`txByteConsumed` handshake and serializes it
@@ -86,18 +89,17 @@ direct read, never a scan.
 
 ### Resource utilization
 
-Synthesized for the GW1NR-9C via Yosys (`synth_gowin`), the RX-through-matching
-pipeline — UART RX, message framing, both order book sides with partial-fill
-support, and the full matching FSM — uses:
+Synthesized for the GW1NR-9C via Yosys (`synth_gowin`), the complete pipeline
+— UART RX, message framing, both order book sides with partial-fill support,
+the full matching FSM, and TX-side execution reporting — uses:
 
 | Resource   | Used  | Available | Utilization |
 |------------|------:|----------:|-------------:|
-| Flip-flops |   718 |     6,480 |        ~11% |
-| LUTs       | 3,350 |     8,640 |        ~39% |
+| Flip-flops |   966 |     6,480 |        ~15% |
+| LUTs       | 3,838 |     8,640 |        ~44% |
 
-Comfortable headroom remains for the TX-side reporting path (`uart_tx.v` +
-`message_tx.v`, individually synthesis-checked but not yet re-measured as part
-of the whole assembled pipeline) and any future extensions.
+Comfortable headroom remains for future extensions (e.g. a deeper book, a
+`CANCEL` message type, or a multi-entry TX report queue).
 
 ## Message Format
 
@@ -195,11 +197,12 @@ asserts its own specific flag, leaving the others untouched.
 ## Matching Engine Design
 
 `matching_engine.v` ties the whole pipeline together. It instantiates
-`message_rx` and one `order_book_side` instance per side, and drives a state
-machine off `message_rx`'s `messageReady` pulse:
+`message_rx`, `message_tx`, and one `order_book_side` instance per side, and
+drives a state machine off `message_rx`'s `messageReady` pulse:
 
 1. **Validate** the message type and side; malformed values are flagged
-   (`wrongMsgType`, `wrongMsgSide`) and dropped rather than acted on.
+   (`wrongMsgType`, `wrongMsgSide`) and reported back as an `RPT_INVALID`
+   outcome rather than acted on.
 2. **Walk the opposite side's book**, comparing the incoming order's
    remaining quantity against each crossing resting order's quantity in turn:
    - if the resting order is smaller, it's fully consumed (`remove`) and the
@@ -210,6 +213,11 @@ machine off `message_rx`'s `messageReady` pulse:
      order is completely filled.
 3. **Rest** any unfilled remainder as a new order on the incoming order's own
    side, or **reject** it if that side's book is full.
+4. **Report**: every resolved order — filled, resting, rejected, or invalid —
+   triggers an execution report via `message_tx`. If a report can't be sent
+   immediately (a previous report is still transmitting), it's latched into a
+   single-entry pending buffer and automatically drained the instant
+   `message_tx` frees up, rather than being dropped.
 
 The walk is bounded by the book's fixed depth (`matchLoopOverrunError` is a
 defensive flag that should be structurally unreachable in normal operation,
@@ -221,10 +229,8 @@ insert/remove/reduce pulse's edge and update its own error/state outputs,
 the matching FSM includes explicit one-cycle wait states between issuing an
 operation and reading back its result.
 
-Three outcome flags report the result of each processed message:
-`orderFilled`, `orderResting`, `orderRejected`. Wiring these into
-`message_tx.v` (feeding it the resolved order ID, outcome, price, and
-quantity) is the next integration step, not yet done.
+Three outcome flags report the result of each processed message internally:
+`orderFilled`, `orderResting`, `orderRejected`.
 
 ## TX Reporting Design
 
@@ -236,7 +242,7 @@ fixed-length, 10-byte execution report:
 | Sentinel   |   1   | Same `0xAA` framing convention as the inbound format |
 | Msg Type   |   1   | Report-type identifier                            |
 | Order ID   |   2   | Which original order this report is about         |
-| Outcome    |   1   | Filled / Resting / Rejected (small enum, extensible) |
+| Outcome    |   1   | Filled / Resting / Rejected / Invalid (small enum, extensible) |
 | Price      |   2   | Echoed back so a downstream consumer needn't track it separately |
 | Quantity   |   2   | Meaning depends on outcome — see below             |
 | Checksum   |   1   | Same XOR convention as the inbound format          |
@@ -245,20 +251,26 @@ fixed-length, 10-byte execution report:
 (always-complete, given this project's current matching semantics) filled
 quantity; for a rest, it's the *remaining* resting quantity, which may be
 smaller than the original order if part of it matched before the remainder
-rested; for a reject, it's the original incoming quantity, since nothing
-happened. This distinction — remaining vs. original — matters for a
-downstream consumer (a planned Python dashboard, driven over the same serial
-link) that wants to track how much of an order is actually still live in the
-book.
+rested; for a reject or an invalid message, it's the original incoming
+quantity, since nothing happened. This distinction — remaining vs. original —
+matters for a downstream consumer (a planned Python dashboard, driven over
+the same serial link) that wants to track how much of an order is actually
+still live in the book.
 
-The module exposes a simple busy/reject contract rather than a queue: a
+Unlike `message_rx.v`, which must incrementally accumulate a checksum as
+untrusted bytes arrive one at a time, `message_tx.v` already has every field
+available the instant a send is requested — its checksum is a single
+combinational expression over the latched field registers, computed once and
+stable for the whole transmission.
+
+`message_tx.v` itself exposes a simple busy/reject contract: a
 `sendMessageValid` pulse received while a previous report is still
-transmitting asserts `sendWhileBusyError` and is otherwise ignored — the
-in-progress transmission completes undisturbed. A queue was considered and
-deliberately deferred: since report generation and order arrival share the
-same physical link and baud rate, the two are naturally paced against each
-other, and there's no concrete evidence yet that back-to-back reports can
-actually arrive faster than TX can drain them.
+transmitting asserts `sendWhileBusyError` and is otherwise ignored. The
+one-entry pending buffer that smooths this out for realistic back-to-back
+order flow lives one layer up, in `matching_engine.v` (see above) — a small,
+targeted addition rather than a full multi-entry queue, since RX and TX
+frames are the same length at the same baud rate and only ever overlap by
+one report deep under sustained load in practice.
 
 ## Testing
 
@@ -267,170 +279,52 @@ actually arrive faster than TX can drain them.
 `message_rx_tb.v` is a self-checking Icarus Verilog testbench (module `test`)
 that instantiates `message_rx` (which in turn instantiates `uart_rx`) and
 drives it bit-serially via a `send_byte` task, built up into full order frames
-via `send_order`. The fractional baud accumulator (`ACC_INCREMENT`) is
-disabled in simulation to keep bit timing exactly deterministic, since it
-exists to approximate a real-world fractional baud rate that has no meaning
-at the simulated clock speed used for fast testing.
+via `send_order`.
 
-All test cases run in a single sequential `initial` block, deliberately with
-no gap between most of them, so that each test also implicitly verifies
-`message_rx` correctly resets its internal state (checksum accumulator, byte
-counter, error flags) and is ready for the next message immediately.
-
-Coverage, all passing:
-
-- **Valid order** — correct sentinel, fields, and checksum decode correctly
-  and assert `messageReady`.
-- **Bad sentinel** — an incorrect first byte asserts `sentinelError` without
-  asserting `messageReady`.
-- **Bad checksum** — a correctly-framed message with a deliberately wrong
-  checksum byte asserts `checksumError` without asserting `messageReady`.
-- **Timeout** — a partial message followed by prolonged silence asserts
-  `timeOutError`, with no other error/ready flag incorrectly set.
-- **Resync after garbage** — a single stray non-sentinel byte followed
-  immediately by a valid order confirms the FSM recovers and decodes the
-  valid message with no special-case handling needed.
-- **Back-to-back valid messages** — two consecutive, distinct valid orders
-  with no gap between them, checked independently, confirming per-message
-  state is fully reset between messages rather than leaking forward.
+Coverage, all passing: valid order decode, bad sentinel, bad checksum,
+timeout, resync after a stray garbage byte, and back-to-back valid messages
+with no gap (confirming per-message state is fully reset between messages).
 
 ### `order_book_side.v`
 
-Two testbenches exercise this module — `order_book_side_bid_tb.v`
-(`DESCENDING=1`, bid side) and `order_book_side_ask_tb.v` (`DESCENDING=0`,
-ask side) — sharing the same overall structure: `do_insert`/`do_remove`/
-`do_reduce` tasks drive the module's pulses directly (no UART or message
-framing involved, since this module's interface is already at the
-clean-signal level), and a `print_book` task dumps every slot's valid bit and
-field values for visual inspection after each test step.
+Two testbenches — `order_book_side_bid_tb.v` (`DESCENDING=1`) and
+`order_book_side_ask_tb.v` (`DESCENDING=0`) — drive the module's
+insert/remove/reduce pulses directly and build up a shared scenario
+sequentially, so later tests also implicitly verify state carries over
+correctly between operations.
 
-Both testbenches build up a shared scenario sequentially rather than
-resetting between tests, so later tests also implicitly verify the module's
-state (sorted order, error flags) carries over correctly from whatever the
-previous test left behind:
-
-- **Simultaneous insert + remove** — both pulsed in the same cycle asserts
-  `simultaneousOpError`, and neither operation is performed.
-- **Remove from an empty book** — asserts `removeEmptyError`, book state
-  unchanged.
-- **Insert into an empty book** — lands correctly in slot 0.
-- **Insert appended / inserted mid-array** — a second insert correctly sorts
-  relative to the first, and a third insert lands strictly between two
-  existing entries, forcing a genuine multi-slot shift (checked field-by-field,
-  not just via the `valid` mask).
-- **Duplicate price** — an insert at a price equal to an existing entry lands
-  *after* it, confirming arrival order (not just price) determines priority
-  at equal prices.
-- **Fill to full, then insert-when-full** — asserts `insertFullError`, book
-  contents unchanged.
-- **Remove from a full book** — correctly removes slot 0 and shifts the
-  remaining entries, verified at both ends of the shifted range.
-- **Interleaved insert/remove** — alternating growth and shrinkage (rather
-  than a monolithic fill-then-drain), confirming the book stays correctly
-  sorted and that transitioning out of the full-book state doesn't leave any
-  stale condition behind.
-- **Drain to empty, then remove again** — re-confirms `removeEmptyError`
-  fires correctly once the book is genuinely empty after real use, not just
-  in its untouched startup state.
-- **Reduce on an empty book** — asserts `reduceEmptyError`, book state
-  unchanged.
-- **Partial reduce** — quantity decreases by exactly the requested amount;
-  every other field, and every other slot, is untouched.
-- **Over-reduce and exact-match reduce** — both assert `overReduceError` and
-  leave quantity unchanged, specifically confirming the `>=` boundary
-  (exact-match is deliberately treated as invalid usage, not a convenience
-  auto-remove).
-- **Reduce followed by an unrelated insert** — confirms a reduced quantity
-  persists correctly through a later, unrelated operation.
-
-A known, low-risk testbench-authoring hazard worth documenting: setting a
-`reg` input in the same simulation instant as the `@(posedge clk)` that's
-meant to register it races against the DUT's own nonblocking assignments to
-that same edge. Every input change in both testbenches is followed by a small
-`#1` delay before being modified, specifically to avoid this.
+Coverage, all passing: simultaneous-operation rejection, insert/remove on
+empty and full books, mid-array insertion forcing a genuine shift,
+duplicate-price time-priority ordering, interleaved insert/remove, partial
+reduce, over-reduce and exact-match-reduce boundary rejection, and state
+persistence across unrelated operations.
 
 ### `matching_engine.v`
 
 `matching_engine_tb.v` drives the engine at its real, external interface —
-raw UART bytes via the same `send_byte`/`send_order` tasks used for
-`message_rx_tb.v` — rather than injecting synthetic internal state, so each
-test exercises the full signal path from serial line to book contents.
-Since `order_book_side`'s internal registers aren't exposed as
-`matching_engine` ports, tests read them via hierarchical references
-(e.g. `dut.bid_book.price`) for verification purposes only. A bounded
-polling task (`wait_for_outcome`) waits for any outcome/error flag to assert,
-since different order paths (a simple rest vs. a multi-order match walk)
-resolve in different numbers of cycles.
-
-Tests build on cumulative book state across the file rather than resetting
-between them; this was itself the source of one test-design bug (a setup
-order unexpectedly matching against a resting order left by an earlier
-test), caught and fixed by tracing the actual book contents rather than
-trusting an assumption about what should still be resting.
+raw UART bytes via `send_order` — and, for TX verification, instantiates a
+second `message_rx`/`uart_rx` pair as a "known-good reference receiver"
+wired to the engine's serial output, decoding and checking every execution
+report the DUT actually transmits.
 
 Coverage, all passing:
 
-- **Rest into an empty book**, **exact-match full fill**, **full match with
-  a resting remainder**, and **partial match via reduce** — the four
-  single-order outcome paths, each verified against both the outcome flag
-  and the resulting book contents on both sides.
-- **Reject on a full book** — the resting side filled to N=8, confirming
-  `orderRejected` and `order_book_side`'s own `insertFullError`, with book
-  contents left unchanged.
-- **`wrongMsgType`** and **`wrongMsgSide`** — malformed messages are flagged
-  and dropped with zero book interaction.
-- **Multi-iteration match walk** — a single incoming order drains an entire
-  8-entry book across seven "fully consume, keep walking" iterations plus a
-  final exact match, confirming the loop's wait-state timing holds up at
-  its structural limit.
-- **`matchLoopOverrunError`** — this condition is unreachable through the
-  real interface (the book can never hold more than N orders, so the walk
-  can never need more than N iterations). Verified instead by directly
-  `force`/`release`-ing the loop counter to its maximum via a hierarchical
-  reference, confirming the defensive guard fires correctly and aborts
-  cleanly with no partial side effects, if it were ever reached due to a
-  hypothetical bug elsewhere.
-- **Sequence number correctness** — increments exactly once per resolved
-  order (fill, rest, or reject), does not increment for dropped messages,
-  and the value stored in the book matches what was actually assigned.
-- **Back-to-back messages with no gap** — a second order's bytes begin
-  streaming immediately after the first's checksum byte, confirming the FSM
-  returns to `IDLE` and correctly processes both messages independently.
-
-This testbench caught two genuine timing bugs during development: the
-match-loop and rest paths were both, at different points, reporting a
-result one cycle before the corresponding `order_book_side` operation had
-actually taken effect — found by checking actual book contents rather than
-trusting the engine's self-reported outcome flag.
-
-### `message_tx.v`
-
-`message_tx_tb.v` takes a different verification approach than the RX-side
-testbenches: rather than decoding raw bits by hand, it instantiates a second,
-already-thoroughly-tested `message_rx` (with its own `uart_rx`) purely as a
-"known-good reference receiver," wired directly to `message_tx`'s serial
-output. Each test drives `message_tx`'s five report-field inputs and a
-`sendMessageValid` pulse, waits (via a bounded polling task) for the
-transmission to complete, and then checks the reference receiver's decoded
-fields against what was sent — verifying the actual bit-level output, not
-just `message_tx`'s own self-reported `messageSent` flag.
-
-Coverage, all passing:
-
-- **Basic round trip** — a single report is sent and decodes correctly on
-  the reference receiver, with no framing/checksum errors on that end.
-- **`sendWhileBusyError`** — a stray send attempt roughly a fifth of the way
-  into an in-progress transmission is flagged, and the *original*
-  transmission is confirmed to complete undisturbed and decode correctly —
-  not just that the error flag lit up while something else silently broke.
-- **Back-to-back reports, no gap** — a second, distinct report is sent
-  immediately once the first completes, confirming the module returns
-  cleanly to `IDLE` with no extra settle time required.
-- **Asymmetric byte values** — a report using distinct, non-symmetric high
-  and low bytes in every multi-byte field, specifically to catch a
-  high/low byte-order swap that earlier, more coincidentally-shaped test
-  values could have missed entirely.
-
+- The four single-order outcome paths (rest, exact-match fill, match-then-
+  rest, reduce-only fill) and reject-on-full-book, each verified against
+  both the outcome flags/book contents and the corresponding execution
+  report — including the outcome-dependent quantity semantics (remaining vs.
+  original) described above.
+- `wrongMsgType` / `wrongMsgSide`, confirming both the correct drop behavior
+  and the `RPT_INVALID` report sent back for each.
+- A full multi-iteration match walk draining an entire 8-entry book in one
+  incoming order.
+- `matchLoopOverrunError`, an structurally-unreachable defensive guard,
+  verified via `force`/`release` on the internal loop counter.
+- Sequence-number correctness across resolved and dropped messages.
+- Back-to-back and back-to-back-to-back messages with zero gaps, confirming
+  `matching_engine`'s one-entry pending report buffer correctly holds and
+  drains overlapping reports without loss, including the case where three
+  reports genuinely do overlap under sustained zero-gap load.
 
 ## Status
 
@@ -442,12 +336,14 @@ Coverage, all passing:
 - [x] `order_book_side.v` testbenches (bid + ask) — all scenarios passing,
       including partial-fill (reduce) support
 - [x] `matching_engine.v` — full/partial-fill matching FSM
-- [x] `matching_engine.v` testbench — all scenarios passing
 - [x] `uart_tx.v` — ported and adapted TX byte-mover
 - [x] `message_tx.v` — TX-side execution report framing
 - [x] `message_tx.v` testbench — all scenarios passing
-- [ ] Wire `message_tx.v` into `matching_engine.v` so real order outcomes
-      actually get reported over the wire
+- [x] `matching_engine.v` wired end-to-end with TX reporting, including a
+      pending-report buffer for overlapping back-to-back orders
+- [x] `matching_engine.v` testbench — all scenarios passing, including full
+      round-trip TX report verification
+- [ ] Python dashboard (order entry + live report display over serial)
 - [ ] Formal verification (SymbiYosys)
 
 ## Toolchain
