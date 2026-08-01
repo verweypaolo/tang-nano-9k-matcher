@@ -86,6 +86,24 @@ module test_matching_engine;
         if (dut.reportPending) pendingBufferWasUsed <= 1;
     end
 
+    // for checking back-to-back-to-back reports/transmissions
+    localparam CAPTURE_DEPTH = 8;
+
+    reg [15:0] capturedOrderID [0:CAPTURE_DEPTH-1];
+    reg [7:0] capturedOutcome [0:CAPTURE_DEPTH-1];
+    reg [15:0] capturedPrice   [0:CAPTURE_DEPTH-1];
+    reg [15:0] capturedQuantity[0:CAPTURE_DEPTH-1];
+    reg [2:0] captureWritePtr;
+    reg [2:0] captureReadPtr;
+
+    reg [15:0] capOrderID;
+    reg [7:0] capOutcome;
+    reg [15:0] capPrice;
+    reg [15:0] capQuantity;
+    reg capValid;
+
+    integer capInit;
+
     initial begin
         uart_rx_line = 1;
         seqBefore = 0;
@@ -93,6 +111,21 @@ module test_matching_engine;
         reportSeenDuringWait = 0;
         i = 0;
         pendingBufferWasUsed = 0;
+        captureWritePtr = 0;
+        captureReadPtr = 0;
+
+        for (capInit = 0; capInit < CAPTURE_DEPTH; capInit = capInit + 1) begin
+            capturedOrderID[capInit] = 0;
+            capturedOutcome[capInit] = 0;
+            capturedPrice[capInit] = 0;
+            capturedQuantity[capInit] = 0;
+        end
+
+        capOrderID = 0;
+        capOutcome = 0;
+        capPrice = 0;
+        capQuantity = 0;
+        capValid = 0;
     end
 
 
@@ -210,6 +243,39 @@ module test_matching_engine;
             $display("");
         end
     endtask
+
+    task read_captured_report;
+        output [15:0] outOrderID;
+        output [7:0]  outOutcome;
+        output [15:0] outPrice;
+        output [15:0] outQuantity;
+        output        outValid;
+        begin
+            if (captureReadPtr == captureWritePtr) begin
+                outValid = 0; // nothing captured yet at this read position
+                $display("DEBUG: read_captured_report - empty, outValid set to %b", outValid);
+            end else begin
+                outOrderID  = capturedOrderID[captureReadPtr];
+                outOutcome  = capturedOutcome[captureReadPtr];
+                outPrice    = capturedPrice[captureReadPtr];
+                outQuantity = capturedQuantity[captureReadPtr];
+                captureReadPtr = captureReadPtr + 1;
+                outValid = 1;
+                $display("DEBUG: read_captured_report - got data, outValid set to %b, orderID=%h", outValid, outOrderID);
+            end
+        end
+    endtask
+
+    always @(posedge clk) begin
+        if (refMessageReadyEdge) begin
+            $display("DEBUG: capture fired at time %0t, writing to slot %0d, orderID=%h", $time, captureWritePtr, refOrderID);
+            capturedOrderID[captureWritePtr]   <= refOrderID;
+            capturedOutcome[captureWritePtr]   <= refOutcome;
+            capturedPrice[captureWritePtr]     <= refPrice;
+            capturedQuantity[captureWritePtr]  <= refQuantity;
+            captureWritePtr <= captureWritePtr + 1; // wraps naturally at 4-bit width vs CAPTURE_DEPTH=4... see note below
+        end
+    end
 
 
     initial begin
@@ -753,6 +819,70 @@ module test_matching_engine;
         end else begin
             $display("PASS: pending buffer was exercised as expected, confirming back-to-back reports correctly overlap given RX/TX timing");
         end
+
+
+        // Test 13: three back-to-back messages, zero gaps between all three —
+        // stress-tests the pending buffer's 1-deep capacity. Since report
+        // transmission can complete WHILE later send_order calls are still
+        // bit-banging bytes, sequential wait_for_report polling can miss
+        // events entirely; this test instead reads from a concurrently-running
+        // capture monitor that observes every refMessageReadyEdge regardless
+        // of what the sequential test code is doing at that moment
+
+        #1;
+        pendingBufferWasUsed = 0;
+        captureReadPtr = 0;
+        captureWritePtr = 0;
+        @(posedge clk); // ensure the reset has fully settled before any new capture can occur
+        #1;
+
+        send_order(8'h01, 16'h0052, 8'h01, 16'h0082, 16'h0005); // SELL id=82, price=130, qty=5
+        send_order(8'h01, 16'h0053, 8'h01, 16'h008C, 16'h0006); // SELL id=83, price=140, qty=6
+        send_order(8'h01, 16'h0054, 8'h01, 16'h0096, 16'h0007); // SELL id=84, price=150, qty=7
+
+        wait_for_outcome; // catches the third order's resolution
+
+        // give any still-in-flight report transmission time to finish and be captured
+        repeat (3000) @(posedge clk);
+
+        if (dut.ask_book.valid !== 8'b00011111) begin
+            $display("FAIL: ask book valid mask = %b, expected 8'b00011111 after three back-to-back-to-back orders", dut.ask_book.valid);
+        end else begin
+            $display("PASS: all three back-to-back-to-back orders correctly rested (book state)");
+        end
+        print_books;
+
+        // read back all three captured reports, in order
+        read_captured_report(capOrderID, capOutcome, capPrice, capQuantity, capValid);
+        if (!capValid || capOrderID !== 16'h0052 || capOutcome !== 8'h02 || capPrice !== 16'h0082 || capQuantity !== 16'h0005) begin
+            $display("FAIL: Test 13 first captured report incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h",
+                    capValid, capOrderID, capOutcome, capPrice, capQuantity);
+        end else begin
+            $display("PASS: Test 13 first captured report correct (order 0x52)");
+        end
+
+        read_captured_report(capOrderID, capOutcome, capPrice, capQuantity, capValid);
+        if (!capValid || capOrderID !== 16'h0053 || capOutcome !== 8'h02 || capPrice !== 16'h008C || capQuantity !== 16'h0006) begin
+            $display("FAIL: Test 13 second captured report incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h",
+                    capValid, capOrderID, capOutcome, capPrice, capQuantity);
+        end else begin
+            $display("PASS: Test 13 second captured report correct (order 0x53)");
+        end
+
+        read_captured_report(capOrderID, capOutcome, capPrice, capQuantity, capValid);
+        if (!capValid || capOrderID !== 16'h0054 || capOutcome !== 8'h02 || capPrice !== 16'h0096 || capQuantity !== 16'h0007) begin
+            $display("FAIL: Test 13 third captured report incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h",
+                    capValid, capOrderID, capOutcome, capPrice, capQuantity);
+        end else begin
+            $display("PASS: Test 13 third captured report correct (order 0x54) — buffer depth of 1 was sufficient, all three reports correctly captured in order");
+        end
+
+        if (!pendingBufferWasUsed) begin
+            $display("FAIL: pending buffer was never used during three-way back-to-back test");
+        end else begin
+            $display("PASS: pending buffer was exercised during the three-way overlap test");
+        end
+
 
         $finish;
     end
