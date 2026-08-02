@@ -5,7 +5,7 @@ module top (
     input uart_rx,
     output uart_tx,
     output [5:0] led,
-    input btn
+    input btn1
 );
 
 wire orderFilled, orderResting, orderRejected;
