@@ -36,7 +36,7 @@ $(BUILD)/top.fs: $(BUILD)/top_pnr.json
 	$(PACK) -d $(FAMILY) -o $(BUILD)/top.fs $(BUILD)/top_pnr.json
 
 flash: $(BUILD)/top.fs
-	$(LOADER) -b tangnano9k $(BUILD)/top.fs
+	$(LOADER) -b tangnano9k -f $(BUILD)/top.fs
 
 clean:
 	rm -rf $(BUILD)
