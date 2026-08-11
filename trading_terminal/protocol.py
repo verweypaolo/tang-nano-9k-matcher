@@ -66,6 +66,19 @@ def _checksum(payload_bytes):
     return checksum
 
 
+@dataclass
+class SentOrder:
+    """A record of an order this terminal sent, kept around so a later
+    Report (which only carries order_id, outcome, price, quantity) can be
+    correlated back to the full original order — needed by book.py's
+    reconstruction, which requires knowing the original side and quantity,
+    neither of which round-trips through a report on its own."""
+    order_id: int
+    side: int
+    price: int
+    quantity: int
+
+
 def build_order(order_id: int, side: int, price: int, quantity: int,
                  msg_type: int = MSG_TYPE_NEW_ORDER) -> bytes:
     """Build a 10-byte order frame ready to write to the serial port.
