@@ -18,43 +18,43 @@
 
     <div class="statusbar__link">
       <span class="link__label">LINK</span>
-      <span class="link__dot link__dot--up" id="linkDot" aria-hidden="true"></span>
-      <span class="link__port" id="linkPort">/dev/cu.usbserial-101</span>
+      <span class="link__dot" id="linkDot" aria-hidden="true"></span>
+      <span class="link__port" id="linkPort">connecting…</span>
       <button class="link__reconnect" id="reconnectBtn" type="button">reconnect</button>
     </div>
 
     <dl class="statusbar__metrics">
       <div class="metric">
         <dt class="metric__label">uptime</dt>
-        <dd class="metric__value" id="statUptime">00:04:12</dd>
+        <dd class="metric__value" id="statUptime">00:00:00</dd>
       </div>
       <div class="metric">
         <dt class="metric__label">sent</dt>
-        <dd class="metric__value" id="statSent">128</dd>
+        <dd class="metric__value" id="statSent">0</dd>
       </div>
       <div class="metric">
         <dt class="metric__label">recv</dt>
-        <dd class="metric__value" id="statRecv">126</dd>
+        <dd class="metric__value" id="statRecv">0</dd>
       </div>
       <div class="metric metric--pending">
         <dt class="metric__label">pending</dt>
-        <dd class="metric__value" id="statPending">2</dd>
+        <dd class="metric__value" id="statPending">0</dd>
       </div>
       <div class="metric metric--filled">
         <dt class="metric__label">filled</dt>
-        <dd class="metric__value" id="statFilled">54</dd>
+        <dd class="metric__value" id="statFilled">0</dd>
       </div>
       <div class="metric metric--resting">
         <dt class="metric__label">resting</dt>
-        <dd class="metric__value" id="statResting">61</dd>
+        <dd class="metric__value" id="statResting">0</dd>
       </div>
       <div class="metric metric--rejected">
         <dt class="metric__label">rejected</dt>
-        <dd class="metric__value" id="statRejected">9</dd>
+        <dd class="metric__value" id="statRejected">0</dd>
       </div>
       <div class="metric metric--invalid">
         <dt class="metric__label">invalid</dt>
-        <dd class="metric__value" id="statInvalid">2</dd>
+        <dd class="metric__value" id="statInvalid">0</dd>
       </div>
     </dl>
   </header>
@@ -86,33 +86,7 @@
         <button type="submit" class="orderform__submit">send order</button>
       </form>
 
-      <ul class="feed" id="outgoingFeed">
-        <li class="feed__row feed__row--pending">
-          <span class="feed__id">#0192</span>
-          <span class="feed__side feed__side--buy">BUY</span>
-          <span class="feed__price">101</span>
-          <span class="feed__qty">×12</span>
-          <span class="feed__flag" title="awaiting report">…</span>
-        </li>
-        <li class="feed__row">
-          <span class="feed__id">#0191</span>
-          <span class="feed__side feed__side--sell">SELL</span>
-          <span class="feed__price">104</span>
-          <span class="feed__qty">×5</span>
-        </li>
-        <li class="feed__row">
-          <span class="feed__id">#0190</span>
-          <span class="feed__side feed__side--buy">BUY</span>
-          <span class="feed__price">99</span>
-          <span class="feed__qty">×20</span>
-        </li>
-        <li class="feed__row">
-          <span class="feed__id">#0189</span>
-          <span class="feed__side feed__side--sell">SELL</span>
-          <span class="feed__price">105</span>
-          <span class="feed__qty">×8</span>
-        </li>
-      </ul>
+      <ul class="feed" id="outgoingFeed"></ul>
     </section>
 
     <!-- ============ BOOK ============ -->
@@ -132,18 +106,13 @@
             <thead>
               <tr><th>id</th><th>qty</th><th>price</th></tr>
             </thead>
-            <tbody>
-              <tr><td class="book__oid">#0173</td><td class="book__qty">22</td><td class="book__price">103</td></tr>
-              <tr><td class="book__oid">#0191</td><td class="book__qty">5</td><td class="book__price">104</td></tr>
-              <tr><td class="book__oid">#0189</td><td class="book__qty">8</td><td class="book__price">105</td></tr>
-              <tr><td class="book__oid">#0178</td><td class="book__qty">14</td><td class="book__price">106</td></tr>
-            </tbody>
+            <tbody></tbody>
           </table>
         </div>
 
         <div class="book__spread">
           <span class="book__spread-label">spread</span>
-          <span class="book__spread-value" id="spreadValue">4</span>
+          <span class="book__spread-value" id="spreadValue">—</span>
         </div>
 
         <div class="book__side book__side--bid">
@@ -152,12 +121,7 @@
             <thead>
               <tr><th>id</th><th>qty</th><th>price</th></tr>
             </thead>
-            <tbody>
-              <tr><td class="book__oid">#0190</td><td class="book__qty">20</td><td class="book__price">99</td></tr>
-              <tr><td class="book__oid">#0184</td><td class="book__qty">6</td><td class="book__price">98</td></tr>
-              <tr><td class="book__oid">#0177</td><td class="book__qty">30</td><td class="book__price">96</td></tr>
-              <tr><td class="book__oid">#0165</td><td class="book__qty">11</td><td class="book__price">94</td></tr>
-            </tbody>
+            <tbody></tbody>
           </table>
         </div>
       </div>
@@ -175,44 +139,13 @@
         <span class="panel__hint">execution reports received</span>
       </div>
 
-      <ul class="feed" id="incomingFeed">
-        <li class="feed__row">
-          <span class="feed__id">#0191</span>
-          <span class="outcome-badge outcome-badge--filled">FILLED</span>
-          <span class="feed__price">104</span>
-          <span class="feed__qty">×5</span>
-        </li>
-        <li class="feed__row">
-          <span class="feed__id">#0190</span>
-          <span class="outcome-badge outcome-badge--resting">RESTING</span>
-          <span class="feed__price">99</span>
-          <span class="feed__qty">×20</span>
-        </li>
-        <li class="feed__row">
-          <span class="feed__id">#0189</span>
-          <span class="outcome-badge outcome-badge--resting">RESTING</span>
-          <span class="feed__price">105</span>
-          <span class="feed__qty">×8</span>
-        </li>
-        <li class="feed__row">
-          <span class="feed__id">#0188</span>
-          <span class="outcome-badge outcome-badge--rejected">REJECTED</span>
-          <span class="feed__price">102</span>
-          <span class="feed__qty">×3</span>
-        </li>
-        <li class="feed__row">
-          <span class="feed__id">#0187</span>
-          <span class="outcome-badge outcome-badge--invalid">INVALID</span>
-          <span class="feed__price">—</span>
-          <span class="feed__qty">—</span>
-        </li>
-      </ul>
+      <ul class="feed" id="incomingFeed"></ul>
     </section>
 
   </main>
 
 </div>
 
-<script src="app.js"></script>
+<script src="/static/app.js"></script>
 </body>
 </html>

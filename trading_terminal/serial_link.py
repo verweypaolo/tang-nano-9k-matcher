@@ -180,19 +180,23 @@ class SerialLink:
         if len(b) == 0:
             return  # read timeout, nothing arrived — loop again
         if b[0] != SENTINEL:
+            print(f"[serial_link] non-sentinel byte while scanning: 0x{b[0]:02X}", flush=True)
             return  # not a frame start, keep scanning
 
         rest = self._serial.read(FRAME_LENGTH - 1)
         if len(rest) != FRAME_LENGTH - 1:
+            print(f"[serial_link] incomplete frame: got {len(rest)}/{FRAME_LENGTH-1} bytes", flush=True)
             return  # incomplete frame (e.g. device disconnected mid-frame)
 
         frame = b + rest
         try:
             report = parse_report(frame)
+            print(f"[serial_link] queued report for order_id={report.order_id}", flush=True)
             self.reports.put(report)
-        except ProtocolError:
+        except ProtocolError as e:
             # bad checksum or similar — drop this candidate frame and
             # resume scanning from the very next byte, not from wherever
             # this attempt left off, in case the real sentinel is buried
             # inside what we just consumed
+            print(f"[serial_link] dropped candidate frame: {e}", flush=True)
             return
