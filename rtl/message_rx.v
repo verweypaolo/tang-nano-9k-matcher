@@ -22,7 +22,8 @@ module message_rx
 );
 
 // must be confortable longer than minimum delay (BAUD_DIVISOR * 11)
-localparam TIMEOUT_CYCLES = BAUD_DIVISOR * 11 * 20; // large number of cycles to account for transmission delay (serial jitter)
+// added another multiplier for USB selective suspend/ resume latency
+localparam TIMEOUT_CYCLES = BAUD_DIVISOR * 11 * 20 * 10; // large number of cycles to account for transmission delay (serial jitter)
 
 // instantiate these to connect the uart_rx outputs through
 wire byteReady;

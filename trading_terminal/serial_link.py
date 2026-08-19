@@ -154,6 +154,7 @@ class SerialLink:
 
         frame = build_order(order_id, side, price, quantity)
         with self._write_lock:
+            print(f"[serial_link] writing order {order_id} at t={time.monotonic():.6f}", flush=True)
             self._serial.write(frame)
         return frame
 
