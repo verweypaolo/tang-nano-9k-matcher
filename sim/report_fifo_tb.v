@@ -24,6 +24,8 @@ module report_fifo_tb;
 
     integer error_count;
     integer i;
+    integer wr_idx, rd_idx;
+    localparam [DATA_WIDTH-1:0] BASE9 = 64'h9000_0000_0000_0000;
 
     report_fifo #(
         .DATA_WIDTH(DATA_WIDTH),
@@ -191,7 +193,14 @@ module report_fifo_tb;
         check_equal("simultaneous wr+rd: second entry intact", rd_data, 64'h6666_0000_0000_0002);
         check_bit("simultaneous wr+rd: empty after final drain", empty, 1);
 
-        // ---- Test 7: pointer wraparound — push/pop past DEPTH boundary multiple times ----
+        // ---- Test 7: per-pointer wraparound with pointers held in phase ----
+        // write_one/read_one execute in lockstep here, so wr_ptr and rd_ptr
+        // increment together and cross the DEPTH boundary on the same
+        // iteration, always staying exactly one apart (count pinned at 1).
+        // This verifies each pointer's own increment-and-wrap logic and that
+        // mem_flat indexing is correct at wrapped-around addresses — it does
+        // NOT verify the pointers wrapping out of phase with each other.
+        // See Test 9 for that case.
         do_reset;
         for (i = 0; i < 3 * DEPTH; i = i + 1) begin
             // keep queue mostly non-empty by writing then immediately reading,
@@ -216,6 +225,40 @@ module report_fifo_tb;
         check_bit("async reset: full_latched cleared", full_latched, 0);
         rst_n = 1;
         @(negedge clk);
+
+        // ---- Test 9: pointers wrap OUT OF PHASE with each other ----
+        // Build a 5-entry backlog first without reading, so wr_ptr sits 5
+        // ahead of rd_ptr before any wrapping happens. Then interleave
+        // writes and reads: because wr_ptr starts 5 ahead, it crosses the
+        // DEPTH boundary and wraps back to 0 several iterations before
+        // rd_ptr does.
+        do_reset;
+        wr_idx = 0;
+        rd_idx = 0;
+
+        for (i = 0; i < 5; i = i + 1) begin
+            write_one(BASE9 + wr_idx);
+            wr_idx = wr_idx + 1;
+        end
+
+        for (i = 0; i < 20; i = i + 1) begin
+            write_one(BASE9 + wr_idx);
+            wr_idx = wr_idx + 1;
+            read_one;
+            @(negedge clk);
+            check_equal("test9: out-of-phase wrap - FIFO order preserved", rd_data, BASE9 + rd_idx);
+            rd_idx = rd_idx + 1;
+        end
+
+        // drain the remaining 5-entry backlog
+        for (i = 0; i < 5; i = i + 1) begin
+            read_one;
+            @(negedge clk);
+            check_equal("test9: drain trailing backlog after out-of-phase wrap", rd_data, BASE9 + rd_idx);
+            rd_idx = rd_idx + 1;
+        end
+        check_bit("test9: empty after full drain", empty, 1);
+        check_bit("test9: not full after full drain", full, 0);
 
         // ---- summary ----
         if (error_count == 0) begin
