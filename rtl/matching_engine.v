@@ -35,6 +35,8 @@ localparam RPT_INVALID = 8'h04; // malformed message (bad msgType or bad side)
 
 localparam RPT_MESSAGE_TYPE_EXECUTION = 8'h01; // indicates type of transmitted report (execution)
 
+localparam DATA_WIDTH = 64;
+
 // message_rx outputs
 wire messageReady;
 wire sentinelError, timeOutError, checksumError;
@@ -77,10 +79,13 @@ reg [15:0] globalSeqNum; // increment once per accepted NEW_ORDER
 reg [15:0] remainingQuantity;
 reg [3:0] matchLoopCount;
 
-// to store pending order incase of back-to-back orders causing a timing issue
-reg [7:0] pendingOutcome;
-reg [15:0] pendingOrderID, pendingPrice, pendingQuantity;
-reg reportPending;
+// FIFO inputs
+reg rst_n, wr_en, rd_en, clear_full;
+reg [DATA_WIDTH-1:0] wr_data;
+
+// FIFO outputs
+wire full, empty, full_latched;
+wire [DATA_WIDTH-1:0] rd_data;
 
 localparam MATCH_LOOP_MAX = N;
 
@@ -177,6 +182,21 @@ order_book_side
     .overReduceError(overReduceErrorAsk)
 );
 
+report_fifo
+#(
+    .DATA_WIDTH(DATA_WIDTH)
+) report_queue (
+    .clk(clk),
+    .rst_n(rst_n),
+    .wr_en(wr_en),
+    .wr_data(wr_data),
+    .rd_en(rd_en),
+    .rd_data(rd_data),
+    .full(full),
+    .empty(empty),
+    .clear_full(clear_full),
+    .full_latched(full_latched)
+);
 
 // messageReady edge
 reg messageReadyPrev;
@@ -192,6 +212,11 @@ localparam ME_STATE_REST = 4;
 localparam ME_STATE_REST_WAIT = 5;
 localparam ME_STATE_REST_CONFIRM = 6;
 localparam ME_STATE_MATCH_DONE_WAIT = 7;
+
+reg drainState;
+
+localparam DRAIN_STATE_IDLE = 0;
+localparam DRAIN_STATE_WAIT = 1;
 
 
 initial begin
@@ -225,11 +250,13 @@ initial begin
     orderResting = 0;
     orderRejected = 0;
 
-    pendingOutcome = 0;
-    pendingOrderID = 0;
-    pendingPrice = 0;
-    pendingQuantity = 0;
-    reportPending = 0;
+    drainState = 0;
+
+    rst_n = 1;       // held high
+    wr_en = 0;
+    rd_en = 0;
+    clear_full = 0;
+    wr_data = 0;
 end
 
 always @(posedge clk) begin
@@ -244,18 +271,8 @@ always @(posedge clk) begin
     removeValidAsk <= 0;
     reduceValidBid <= 0;
     reduceValidAsk <= 0;
-    sendMessageValid <= 0;
 
-    // drain pending report the moment message_tx frees up (independent of FSM)
-    if (reportPending && !txBusy) begin
-        sendMessageValid <= 1;
-        msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
-        orderIDOut <= pendingOrderID;
-        outcomeOut <= pendingOutcome;
-        priceOut <= pendingPrice;
-        quantityOut <= pendingQuantity;
-        reportPending <= 0;
-    end
+    wr_en <= 0;
 
     case (meState)
         ME_STATE_IDLE: begin
@@ -273,21 +290,9 @@ always @(posedge clk) begin
             if (msgType != MSG_TYPE_NEW_ORDER) begin
                 wrongMsgType <= 1;
                 meState <= ME_STATE_IDLE;
-
-                if (!txBusy && !reportPending) begin
-                    sendMessageValid <= 1;
-                    msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
-                    orderIDOut <= orderID;
-                    outcomeOut <= RPT_INVALID;
-                    priceOut <= price;
-                    quantityOut <= quantity;
-                end else begin
-                    pendingOrderID <= orderID;
-                    pendingOutcome <= RPT_INVALID;
-                    pendingPrice <= price;
-                    pendingQuantity <= quantity;
-                    reportPending <= 1;
-                end
+                // write to queue
+                wr_en <= 1;
+                wr_data <= {RPT_MESSAGE_TYPE_EXECUTION, orderID, RPT_INVALID, price, quantity};
             end else if (side == MSG_SIDE_BUY || side == MSG_SIDE_SELL) begin
                 remainingQuantity <= quantity;
                 matchLoopCount <= 0;
@@ -299,21 +304,9 @@ always @(posedge clk) begin
             end else begin
                 wrongMsgSide <= 1;
                 meState <= ME_STATE_IDLE;
-
-                if (!txBusy && !reportPending) begin
-                    sendMessageValid <= 1;
-                    msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
-                    orderIDOut <= orderID;
-                    outcomeOut <= RPT_INVALID;
-                    priceOut <= price;
-                    quantityOut <= quantity;
-                end else begin
-                    pendingOrderID <= orderID;
-                    pendingOutcome <= RPT_INVALID;
-                    pendingPrice <= price;
-                    pendingQuantity <= quantity;
-                    reportPending <= 1;
-                end
+                // write to queue
+                wr_en <= 1;
+                wr_data <= {RPT_MESSAGE_TYPE_EXECUTION, orderID, RPT_INVALID, price, quantity};
             end
         end
         ME_STATE_MATCH_LOOP: begin
@@ -368,20 +361,9 @@ always @(posedge clk) begin
             // otherwise orderFilled is asserted one cycle BEFORE the book updates.
             orderFilled <= 1;
             meState <= ME_STATE_IDLE;
-            if (!txBusy && !reportPending) begin
-                sendMessageValid <= 1;
-                msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
-                orderIDOut <= orderID;
-                outcomeOut <= RPT_FILLED;
-                priceOut <= price;
-                quantityOut <= quantity;
-            end else begin
-                pendingOrderID <= orderID;
-                pendingOutcome <= RPT_FILLED;
-                pendingPrice <= price;
-                pendingQuantity <= quantity;
-                reportPending <= 1;
-            end
+            // write to queue
+            wr_en <= 1;
+            wr_data <= {RPT_MESSAGE_TYPE_EXECUTION, orderID, RPT_FILLED, price, quantity};
         end
         ME_STATE_REST: begin
             if (side == MSG_SIDE_BUY) begin
@@ -399,43 +381,41 @@ always @(posedge clk) begin
         ME_STATE_REST_CONFIRM: begin
             if ((side == MSG_SIDE_BUY && insertFullErrorBid) || (side == MSG_SIDE_SELL && insertFullErrorAsk)) begin
                 orderRejected <= 1;
-
-                if (!txBusy && !reportPending) begin
-                    sendMessageValid <= 1;
-                    msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
-                    orderIDOut <= orderID;
-                    outcomeOut <= RPT_REJECTED;
-                    priceOut <= price;
-                    quantityOut <= quantity;
-                end else begin
-                    // either busy, or pending slot is being freed by the drain this very cycle — safe to buffer
-                    pendingOrderID <= orderID;
-                    pendingOutcome <= RPT_REJECTED;
-                    pendingPrice <= price;
-                    pendingQuantity <= quantity;
-                    reportPending <= 1;
-                end
+                // write to queue
+                wr_en <= 1;
+                wr_data <= {RPT_MESSAGE_TYPE_EXECUTION, orderID, RPT_REJECTED, price, quantity};
             end else begin
                 orderResting <= 1;
                 globalSeqNum <= globalSeqNum + 1;
-
-                if (!txBusy && !reportPending) begin
-                    sendMessageValid <= 1;
-                    msgTypeOut <= RPT_MESSAGE_TYPE_EXECUTION;
-                    orderIDOut <= orderID;
-                    outcomeOut <= RPT_RESTING;
-                    priceOut <= price;
-                    quantityOut <= remainingQuantity;
-                end else begin
-                    // either busy, or pending slot is being freed by the drain this very cycle — safe to buffer
-                    pendingOrderID <= orderID;
-                    pendingOutcome <= RPT_RESTING;
-                    pendingPrice <= price;
-                    pendingQuantity <= remainingQuantity;
-                    reportPending <= 1;
-                end
+                // write to queue
+                wr_en <= 1;
+                wr_data <= {RPT_MESSAGE_TYPE_EXECUTION, orderID, RPT_RESTING, price, remainingQuantity};
             end
             meState <= ME_STATE_IDLE;
+        end
+    endcase
+end
+
+always @(posedge clk) begin
+    sendMessageValid <= 0;
+    rd_en <= 0;
+
+    case(drainState)
+        DRAIN_STATE_IDLE: begin
+            if(!empty && !txBusy) begin
+                rd_en <= 1;
+                drainState <= DRAIN_STATE_WAIT;
+            end
+        end
+        DRAIN_STATE_WAIT: begin
+            msgTypeOut  <= rd_data[63:56];
+            orderIDOut  <= rd_data[55:40];
+            outcomeOut  <= rd_data[39:32];
+            priceOut    <= rd_data[31:16];
+            quantityOut <= rd_data[15:0];
+
+            sendMessageValid <= 1;
+            drainState <= DRAIN_STATE_IDLE;
         end
     endcase
 end
