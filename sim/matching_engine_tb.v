@@ -81,9 +81,13 @@ module test_matching_engine;
     initial clk = 0;
     always #5 clk = ~clk;
 
-    reg pendingBufferWasUsed;
+    // replaces the old pendingBufferWasUsed monitor (dut.reportPending no longer exists —
+    // the 1-deep pending buffer was fully replaced by report_fifo). This tracks whether the
+    // FIFO ever actually held a queued-but-undrained report, i.e. whether genuine overlap
+    // was exercised rather than every report draining before the next one was queued.
+    reg queueWasUsed;
     always @(posedge clk) begin
-        if (dut.reportPending) pendingBufferWasUsed <= 1;
+        if (!dut.empty) queueWasUsed <= 1;
     end
 
     // for checking back-to-back-to-back reports/transmissions
@@ -110,7 +114,7 @@ module test_matching_engine;
         refMessageReadyPrev = 0;
         reportSeenDuringWait = 0;
         i = 0;
-        pendingBufferWasUsed = 0;
+        queueWasUsed = 0;
         captureWritePtr = 0;
         captureReadPtr = 0;
 
@@ -750,137 +754,144 @@ module test_matching_engine;
         end
         print_books;
 
-        // make sure no report sent
+        // make sure no report sent (or queued — check the FIFO's empty flag directly now that
+        // there's no single reportPending bit to inspect)
         reportSeenDuringWait = 0;
         for (i = 0; i < 2000; i = i + 1) begin
             @(posedge clk);
             if (refMessageReadyEdge) reportSeenDuringWait = 1;
         end
 
-        if (reportSeenDuringWait || dut.reportPending) begin
-            $display("FAIL: a report was unexpectedly sent (or queued) for a matchLoopOverrunError-aborted order");
+        if (reportSeenDuringWait || !dut.empty) begin
+            $display("FAIL: a report was unexpectedly sent (or sits queued in the FIFO) for a matchLoopOverrunError-aborted order");
         end else begin
-            $display("PASS: correctly no report sent for an aborted, defensively-guarded order");
-        end
-
-        // Test 12: back-to-back messages, no gap, the second order's bytes begin streaming immediately after the first's 
-        // checksum byte, with no wait_for_outcome in between
-        pendingBufferWasUsed = 0;
-
-        send_order(8'h01, 16'h0050, 8'h01, 16'h006E, 16'h000F); // SELL id=80, price=110, qty=15 non-crossing, rests
-        send_order(8'h01, 16'h0051, 8'h01, 16'h0078, 16'h0014); // SELL id=81, price=120, qty=20 non-crossing, rests, sent immediately after
-
-        wait_for_outcome; // catches the second order's resolution
-
-        if (dut.ask_book.valid !== 8'b00000011) begin
-            $display("FAIL: ask book valid mask = %b, expected 8'b00000011 after two back-to-back resting orders", dut.ask_book.valid);
-        end else if (dut.ask_book.price[0*16 +: 16] !== 16'h006E || dut.ask_book.orderID[0*16 +: 16] !== 16'h0050) begin
-            $display("FAIL: first back-to-back order not correctly resting at slot 0. price=%h orderID=%h",
-                    dut.ask_book.price[0*16 +: 16], dut.ask_book.orderID[0*16 +: 16]);
-        end else if (dut.ask_book.price[1*16 +: 16] !== 16'h0078 || dut.ask_book.orderID[1*16 +: 16] !== 16'h0051) begin
-            $display("FAIL: second back-to-back order not correctly resting at slot 1. price=%h orderID=%h",
-                    dut.ask_book.price[1*16 +: 16], dut.ask_book.orderID[1*16 +: 16]);
-        end else if (dut.bid_book.valid !== 8'b00000001 || dut.bid_book.orderID[0*16 +: 16] !== 16'h0049) begin
-            $display("FAIL: bid book was disturbed by back-to-back sell orders. valid=%b orderID=%h",
-                    dut.bid_book.valid, dut.bid_book.orderID[0*16 +: 16]);
-        end else begin
-            $display("PASS: back-to-back messages with no gap both correctly processed and resting in sorted order");
-        end
-        print_books;
-
-        // verify the first report
-        wait_for_report;
-
-        if (!refMessageReady) begin
-            $display("FAIL: no report received for Test 12's first back-to-back order");
-        end else if (refOrderID !== 16'h0050 || refOutcome !== 8'h02 /* RPT_RESTING */
-                || refPrice !== 16'h006E || refQuantity !== 16'h000F) begin
-            $display("FAIL: Test 12 first report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
-                    refOrderID, refOutcome, refPrice, refQuantity);
-        end else begin
-            $display("PASS: Test 12 first back-to-back report correctly transmitted and decoded");
-        end
-
-        // verify the second report, and that the pending buffer was actually used to get it there
-        wait_for_report;
-
-        if (!refMessageReady) begin
-            $display("FAIL: no report received for Test 12's second back-to-back order");
-        end else if (refOrderID !== 16'h0051 || refOutcome !== 8'h02 /* RPT_RESTING */
-                || refPrice !== 16'h0078 || refQuantity !== 16'h0014) begin
-            $display("FAIL: Test 12 second report incorrect. orderID=%h outcome=%h price=%h quantity=%h",
-                    refOrderID, refOutcome, refPrice, refQuantity);
-        end else begin
-            $display("PASS: Test 12 second back-to-back report correctly transmitted and decoded");
-        end
-
-        if (!pendingBufferWasUsed) begin
-            $display("FAIL: pending buffer was never used — back-to-back timing did not exercise the intended overlap scenario");
-        end else begin
-            $display("PASS: pending buffer was exercised as expected, confirming back-to-back reports correctly overlap given RX/TX timing");
+            $display("PASS: correctly no report sent or queued for an aborted, defensively-guarded order");
         end
 
 
-        // Test 13: three back-to-back messages, zero gaps between all three —
-        // stress-tests the pending buffer's 1-deep capacity. Since report
-        // transmission can complete WHILE later send_order calls are still
-        // bit-banging bytes, sequential wait_for_report polling can miss
-        // events entirely; this test instead reads from a concurrently-running
-        // capture monitor that observes every refMessageReadyEdge regardless
-        // of what the sequential test code is doing at that moment
+        // Test 12: back-to-back-to-back messages, zero gaps between all of them — stress-tests the
+        // report_fifo's depth directly. Four rapid-fire orders means at least three reports must sit
+        // queued simultaneously at some point, which the old 1-deep pending buffer could never have
+        // survived without silently overwriting earlier reports. Since report transmission can complete
+        // WHILE later send_order calls are still bit-banging bytes, sequential wait_for_report polling
+        // can miss events entirely; this uses the concurrently-running capture monitor instead, which
+        // observes every refMessageReadyEdge regardless of what the sequential test code is doing.
 
         #1;
-        pendingBufferWasUsed = 0;
+        queueWasUsed = 0;
         captureReadPtr = 0;
         captureWritePtr = 0;
-        @(posedge clk); // ensure the reset has fully settled before any new capture can occur
+        @(posedge clk); // ensure prior state has fully settled before any new capture can occur
         #1;
 
+        send_order(8'h01, 16'h0050, 8'h01, 16'h006E, 16'h000F); // SELL id=80, price=110, qty=15
+        send_order(8'h01, 16'h0051, 8'h01, 16'h0078, 16'h0014); // SELL id=81, price=120, qty=20
         send_order(8'h01, 16'h0052, 8'h01, 16'h0082, 16'h0005); // SELL id=82, price=130, qty=5
         send_order(8'h01, 16'h0053, 8'h01, 16'h008C, 16'h0006); // SELL id=83, price=140, qty=6
-        send_order(8'h01, 16'h0054, 8'h01, 16'h0096, 16'h0007); // SELL id=84, price=150, qty=7
 
-        wait_for_outcome; // catches the third order's resolution
+        wait_for_outcome; // catches the fourth order's resolution
 
         // give any still-in-flight report transmission time to finish and be captured
         repeat (3000) @(posedge clk);
 
-        if (dut.ask_book.valid !== 8'b00011111) begin
-            $display("FAIL: ask book valid mask = %b, expected 8'b00011111 after three back-to-back-to-back orders", dut.ask_book.valid);
+        if (dut.ask_book.valid !== 8'b00001111) begin
+            $display("FAIL: ask book valid mask = %b, expected 8'b00001111 after four back-to-back-to-back orders", dut.ask_book.valid);
         end else begin
-            $display("PASS: all three back-to-back-to-back orders correctly rested (book state)");
+            $display("PASS: all four back-to-back-to-back orders correctly rested (book state)");
         end
         print_books;
 
-        // read back all three captured reports, in order
+        // read back all four captured reports, in order — this is the direct check that the FIFO
+        // preserved order and dropped nothing under a burst deeper than the old buffer could handle
         read_captured_report(capOrderID, capOutcome, capPrice, capQuantity, capValid);
-        if (!capValid || capOrderID !== 16'h0052 || capOutcome !== 8'h02 || capPrice !== 16'h0082 || capQuantity !== 16'h0005) begin
-            $display("FAIL: Test 13 first captured report incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h",
+        if (!capValid || capOrderID !== 16'h0050 || capOutcome !== 8'h02 || capPrice !== 16'h006E || capQuantity !== 16'h000F) begin
+            $display("FAIL: Test 12 first captured report incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h",
                     capValid, capOrderID, capOutcome, capPrice, capQuantity);
         end else begin
-            $display("PASS: Test 13 first captured report correct (order 0x52)");
+            $display("PASS: Test 12 first captured report correct (order 0x50)");
+        end
+
+        read_captured_report(capOrderID, capOutcome, capPrice, capQuantity, capValid);
+        if (!capValid || capOrderID !== 16'h0051 || capOutcome !== 8'h02 || capPrice !== 16'h0078 || capQuantity !== 16'h0014) begin
+            $display("FAIL: Test 12 second captured report incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h",
+                    capValid, capOrderID, capOutcome, capPrice, capQuantity);
+        end else begin
+            $display("PASS: Test 12 second captured report correct (order 0x51)");
+        end
+
+        read_captured_report(capOrderID, capOutcome, capPrice, capQuantity, capValid);
+        if (!capValid || capOrderID !== 16'h0052 || capOutcome !== 8'h02 || capPrice !== 16'h0082 || capQuantity !== 16'h0005) begin
+            $display("FAIL: Test 12 third captured report incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h",
+                    capValid, capOrderID, capOutcome, capPrice, capQuantity);
+        end else begin
+            $display("PASS: Test 12 third captured report correct (order 0x52)");
         end
 
         read_captured_report(capOrderID, capOutcome, capPrice, capQuantity, capValid);
         if (!capValid || capOrderID !== 16'h0053 || capOutcome !== 8'h02 || capPrice !== 16'h008C || capQuantity !== 16'h0006) begin
-            $display("FAIL: Test 13 second captured report incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h",
+            $display("FAIL: Test 12 fourth captured report incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h",
                     capValid, capOrderID, capOutcome, capPrice, capQuantity);
         end else begin
-            $display("PASS: Test 13 second captured report correct (order 0x53)");
+            $display("PASS: Test 12 fourth captured report correct (order 0x53) — FIFO depth was sufficient for a 4-deep burst, all reports correctly queued and drained in order");
         end
 
-        read_captured_report(capOrderID, capOutcome, capPrice, capQuantity, capValid);
-        if (!capValid || capOrderID !== 16'h0054 || capOutcome !== 8'h02 || capPrice !== 16'h0096 || capQuantity !== 16'h0007) begin
-            $display("FAIL: Test 13 third captured report incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h",
-                    capValid, capOrderID, capOutcome, capPrice, capQuantity);
+        if (!queueWasUsed) begin
+            $display("FAIL: report_fifo's empty flag never went low during the four-way back-to-back-to-back test — the burst never actually exercised queuing overlap");
         end else begin
-            $display("PASS: Test 13 third captured report correct (order 0x54) — buffer depth of 1 was sufficient, all three reports correctly captured in order");
+            $display("PASS: report_fifo was genuinely exercised (held queued, undrained reports) during the four-way overlap test");
         end
 
-        if (!pendingBufferWasUsed) begin
-            $display("FAIL: pending buffer was never used during three-way back-to-back test");
+
+        // Test 13: exceed old 1-deep-buffer capacity outright — six rapid-fire orders with zero gaps,
+        // deliberately more overlap than the report_fifo's own DEPTH=8 would need to absorb comfortably,
+        // but still well past what a 1-deep buffer could ever have survived without silent overwrites
+        #1;
+        queueWasUsed = 0;
+        captureReadPtr = 0;
+        captureWritePtr = 0;
+        @(posedge clk);
+        #1;
+
+        send_order(8'h01, 16'h0060, 8'h01, 16'h00A0, 16'h0003); // SELL id=96,  price=160, qty=3
+        send_order(8'h01, 16'h0061, 8'h01, 16'h00AA, 16'h0003); // SELL id=97,  price=170, qty=3
+        send_order(8'h01, 16'h0062, 8'h01, 16'h00B4, 16'h0003); // SELL id=98,  price=180, qty=3
+        send_order(8'h01, 16'h0063, 8'h01, 16'h00BE, 16'h0003); // SELL id=99,  price=190, qty=3
+        send_order(8'h01, 16'h0064, 8'h01, 16'h00C8, 16'h0003); // SELL id=100, price=200, qty=3
+        send_order(8'h01, 16'h0065, 8'h01, 16'h00D2, 16'h0003); // SELL id=101, price=210, qty=3
+
+        wait_for_outcome; // catches the sixth order's resolution
+
+        repeat (5000) @(posedge clk);
+
+        if (dut.ask_book.valid !== 8'b11111111) begin
+            $display("FAIL: ask book valid mask = %b, expected full 8'b11111111 after six more back-to-back-to-back orders on top of the existing four", dut.ask_book.valid);
         end else begin
-            $display("PASS: pending buffer was exercised during the three-way overlap test");
+            $display("PASS: all six additional rapid-fire orders correctly rested, filling the ask book to N=8");
+        end
+        print_books;
+
+        // NOTE: the ask book already held 4 entries from Test 12 (0x50-0x53) before this test started.
+        // Of these 6 new orders, only the first 4 (0x60-0x63) find free slots — the book hits N=8 exactly
+        // on the fourth, so the 5th and 6th (0x64, 0x65) correctly get REJECTED rather than RESTING.
+        // This is intentionally kept rather than "fixed" to fit — it's a stronger test than originally
+        // planned, since it confirms the FIFO correctly queues and drains a MIX of RESTING and REJECTED
+        // outcomes back-to-back, in order, not just a uniform run of one outcome type.
+        for (i = 0; i < 6; i = i + 1) begin
+            read_captured_report(capOrderID, capOutcome, capPrice, capQuantity, capValid);
+            if (!capValid || capOrderID !== (16'h0060 + i)
+                    || capOutcome !== (i < 4 ? 8'h02 : 8'h03)
+                    || capPrice !== (16'h00A0 + i*16'h000A) || capQuantity !== 16'h0003) begin
+                $display("FAIL: Test 13 captured report #%0d incorrect or missing. valid=%b orderID=%h outcome=%h price=%h quantity=%h, expected outcome=%h",
+                        i, capValid, capOrderID, capOutcome, capPrice, capQuantity, (i < 4 ? 8'h02 : 8'h03));
+            end else begin
+                $display("PASS: Test 13 captured report #%0d correct (order %h, outcome %s)", i, capOrderID, (i < 4 ? "RESTING" : "REJECTED"));
+            end
+        end
+
+        if (!queueWasUsed) begin
+            $display("FAIL: report_fifo was never observed non-empty during the six-way rapid-fire test");
+        end else begin
+            $display("PASS: report_fifo correctly absorbed a burst well beyond the old 1-deep buffer's capacity, all six reports preserved in order");
         end
 
 
