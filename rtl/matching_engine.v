@@ -213,10 +213,11 @@ localparam ME_STATE_REST_WAIT = 5;
 localparam ME_STATE_REST_CONFIRM = 6;
 localparam ME_STATE_MATCH_DONE_WAIT = 7;
 
-reg drainState;
+reg [1:0] drainState;
 
 localparam DRAIN_STATE_IDLE = 0;
 localparam DRAIN_STATE_WAIT = 1;
+localparam DRAIN_STATE_CAPTURE = 2;
 
 
 initial begin
@@ -407,7 +408,11 @@ always @(posedge clk) begin
                 drainState <= DRAIN_STATE_WAIT;
             end
         end
-        DRAIN_STATE_WAIT: begin
+        DRAIN_STATE_WAIT:begin
+            // need to wait for FIFO to put data in rd_data, takes 2 edges from rd_en in IDLE state above
+            drainState <= DRAIN_STATE_CAPTURE;
+        end
+        DRAIN_STATE_CAPTURE: begin
             msgTypeOut  <= rd_data[63:56];
             orderIDOut  <= rd_data[55:40];
             outcomeOut  <= rd_data[39:32];
