@@ -10,6 +10,7 @@ module top (
 
 wire orderFilled, orderResting, orderRejected;
 wire wrongMsgType, wrongMsgSide, matchLoopOverrunError;
+wire sentinelErrorLatched, timeOutErrorLatched, checksumErrorLatched;
 
 matching_engine matching_engine_inst (
     .clk(clk),
@@ -20,14 +21,17 @@ matching_engine matching_engine_inst (
     .orderRejected(orderRejected),
     .wrongMsgType(wrongMsgType),
     .wrongMsgSide(wrongMsgSide),
-    .matchLoopOverrunError(matchLoopOverrunError)
+    .matchLoopOverrunError(matchLoopOverrunError),
+    .sentinelErrorLatched(sentinelErrorLatched),
+    .timeOutErrorLatched(timeOutErrorLatched),
+    .checksumErrorLatched(checksumErrorLatched)
 );
 
 assign led[0] = ~orderFilled;
 assign led[1] = ~orderResting;
 assign led[2] = ~orderRejected;
-assign led[3] = ~wrongMsgType;
-assign led[4] = ~wrongMsgSide;
-assign led[5] = ~matchLoopOverrunError;
+assign led[3] = ~sentinelErrorLatched;
+assign led[4] = ~timeOutErrorLatched;
+assign led[5] = ~checksumErrorLatched;
 
 endmodule

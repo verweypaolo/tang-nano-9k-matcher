@@ -20,7 +20,11 @@ module matching_engine
 
     output reg wrongMsgType,
     output reg wrongMsgSide,
-    output reg matchLoopOverrunError
+    output reg matchLoopOverrunError,
+    
+    output reg sentinelErrorLatched,
+    output reg timeOutErrorLatched,
+    output reg checksumErrorLatched
 );
 
 
@@ -253,15 +257,31 @@ initial begin
 
     drainState = 0;
 
-    rst_n = 1;       // held high
+    rst_n = 1; // held high
     wr_en = 0;
     rd_en = 0;
     clear_full = 0;
     wr_data = 0;
+
+    sentinelErrorLatched = 0;
+    timeOutErrorLatched  = 0;
+    checksumErrorLatched = 0;
 end
 
 always @(posedge clk) begin
     messageReadyPrev <= messageReady;
+end
+
+always @(posedge clk) begin
+    if (sentinelError) sentinelErrorLatched <= 1;
+end
+
+always @(posedge clk) begin
+    if (timeOutError) timeOutErrorLatched <= 1;
+end
+
+always @(posedge clk) begin
+    if (checksumError) checksumErrorLatched <= 1;
 end
 
 always @(posedge clk) begin
