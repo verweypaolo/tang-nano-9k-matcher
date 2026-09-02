@@ -1,0 +1,307 @@
+Info: Using uarch 'gowin' for device 'GW1NR-LV9QN88PC6/I5'
+
+Info: Cell O_psram_ck[0] not found
+Info: Cell O_psram_ck[1] not found
+Info: Cell O_psram_ck_n[0] not found
+Info: Cell O_psram_ck_n[1] not found
+Info: Cell O_psram_cs_n[0] not found
+Info: Cell O_psram_cs_n[1] not found
+Info: Cell O_psram_reset_n[0] not found
+Info: Cell O_psram_reset_n[1] not found
+Info: Cell IO_psram_dq[0] not found
+Info: Cell IO_psram_dq[1] not found
+Info: Cell IO_psram_dq[2] not found
+Info: Cell IO_psram_dq[3] not found
+Info: Cell IO_psram_dq[4] not found
+Info: Cell IO_psram_dq[5] not found
+Info: Cell IO_psram_dq[6] not found
+Info: Cell IO_psram_dq[7] not found
+Info: Cell IO_psram_dq[8] not found
+Info: Cell IO_psram_dq[9] not found
+Info: Cell IO_psram_dq[10] not found
+Info: Cell IO_psram_dq[11] not found
+Info: Cell IO_psram_dq[12] not found
+Info: Cell IO_psram_dq[13] not found
+Info: Cell IO_psram_dq[14] not found
+Info: Cell IO_psram_dq[15] not found
+Info: Cell IO_psram_rwds[0] not found
+Info: Cell IO_psram_rwds[1] not found
+Info: Reading constraints...
+Info: Create constant nets...
+Info: Modify LUTs...
+Info: Pack IOBs...
+Info: Pack I3C IOs...
+Info: Pack MIPI IOs...
+Info: Pack diff IOBs...
+Info: Pack FFs into IO cells...
+Info: Pack IODELAY...
+Info: Pack Input Edge Monitors...
+Info: Pack IO logic...
+Info: Pack DESER16 logic...
+Info: Pack GSR...
+Info: Pack HCLK cells...
+Info: Pack DLLDLYs...
+Info: Pack wide LUTs...
+Info: Packed MUX2_LUT8:11, MUX2_LU7:70, MUX2_LUT6:84, MUX2_LUT5:454
+Info: Pack ALUs...
+Info: Pack SSRAMs...
+Info: Constrained 791 LUTFF pairs.
+Info: Pack PLL...
+Info: Pack ADC...
+Info: Pack BSRAMs...
+Info: Pack DSP...
+Info: Pack INV...
+Info: Pack buffered nets...
+Info: Pack EMCU and UserFlash cells...
+Info: Pack UserFlash cells...
+Info: Pack DQCE cells...
+Info: Pack DCS cells...
+Info: Checksum: 0x2d5b2720
+
+Info: Device utilisation:
+Info: 	                 VCC:       1/      1   100%
+Info: 	                 IOB:      10/    276     3%
+Info: 	                LUT4:    3805/   8640    44%
+Info: 	              OSER16:       0/     80     0%
+Info: 	              IDES16:       0/     80     0%
+Info: 	            IOLOGICI:       0/    276     0%
+Info: 	            IOLOGICO:       0/    276     0%
+Info: 	           MUX2_LUT5:     990/   4320    22%
+Info: 	           MUX2_LUT6:     268/   2160    12%
+Info: 	           MUX2_LUT7:      92/   1080     8%
+Info: 	           MUX2_LUT8:      11/   1080     1%
+Info: 	                 ALU:     468/   6480     7%
+Info: 	                 GND:       1/      1   100%
+Info: 	                 DFF:    1562/   6480    24%
+Info: 	           RAM16SDP4:       0/    270     0%
+Info: 	               BSRAM:       0/     26     0%
+Info: 	              ALU54D:       0/     10     0%
+Info: 	     MULTADDALU18X18:       0/     10     0%
+Info: 	        MULTALU18X18:       0/     10     0%
+Info: 	        MULTALU36X18:       0/     10     0%
+Info: 	           MULT36X36:       0/      5     0%
+Info: 	           MULT18X18:       0/     20     0%
+Info: 	             MULT9X9:       0/     40     0%
+Info: 	              PADD18:       0/     20     0%
+Info: 	               PADD9:       0/     40     0%
+Info: 	                 GSR:       1/      1   100%
+Info: 	                 OSC:       0/      1     0%
+Info: 	                rPLL:       0/      2     0%
+Info: 	           FLASH608K:       0/      1     0%
+Info: 	                BUFG:       0/     22     0%
+Info: 	                DQCE:       0/     24     0%
+Info: 	                 DCS:       0/      8     0%
+Info: 	               DHCEN:       0/     24     0%
+Info: 	              CLKDIV:       0/      8     0%
+Info: 	             CLKDIV2:       0/     16     0%
+Info: 	           MIPI_IBUF:       0/     22     0%
+Info: 	           MIPI_OBUF:       0/     20     0%
+
+Info: Running custom HCLK placer...
+Info: Placed 0 cells based on constraints.
+Info: Creating initial analytic placement for 2780 cells, random placement wirelen = 92621.
+Info:     at initial placer iter 0, wirelen = 998
+Info:     at initial placer iter 1, wirelen = 912
+Info:     at initial placer iter 2, wirelen = 910
+Info:     at initial placer iter 3, wirelen = 847
+Info: Running main analytical placer, max placement attempts per cell = 6496210.
+Info:     at iteration #1, type ALL: wirelen solved = 838, spread = 17665, legal = 53085; time = 0.82s
+Info:     at iteration #2, type ALL: wirelen solved = 2270, spread = 20366, legal = 46508; time = 0.35s
+Info:     at iteration #3, type ALL: wirelen solved = 3477, spread = 14806, legal = 36369; time = 0.30s
+Info:     at iteration #4, type ALL: wirelen solved = 5211, spread = 15347, legal = 38495; time = 0.50s
+Info:     at iteration #5, type ALL: wirelen solved = 5739, spread = 14458, legal = 39896; time = 0.55s
+Info:     at iteration #6, type ALL: wirelen solved = 6082, spread = 17921, legal = 39981; time = 0.32s
+Info:     at iteration #7, type ALL: wirelen solved = 7371, spread = 14883, legal = 37129; time = 0.35s
+Info:     at iteration #8, type ALL: wirelen solved = 7469, spread = 17219, legal = 36841; time = 0.27s
+Info: HeAP Placer Time: 3.72s
+Info:   of which solving equations: 0.53s
+Info:   of which spreading cells: 0.05s
+Info:   of which strict legalisation: 3.07s
+
+Info: Running simulated annealing placer for refinement.
+Info:   at iteration #1: temp = 0.000000, timing cost = 504, wirelen = 36369
+Info:   at iteration #5: temp = 0.000000, timing cost = 269, wirelen = 22930
+Info:   at iteration #10: temp = 0.000000, timing cost = 204, wirelen = 20533
+Info:   at iteration #15: temp = 0.000000, timing cost = 211, wirelen = 19628
+Info:   at iteration #20: temp = 0.000000, timing cost = 200, wirelen = 18989
+Info:   at iteration #25: temp = 0.000000, timing cost = 197, wirelen = 18510
+Info:   at iteration #30: temp = 0.000000, timing cost = 197, wirelen = 18368
+Info:   at iteration #33: temp = 0.000000, timing cost = 196, wirelen = 18308 
+Info: SA placement time 5.87s
+
+Info: Max frequency for clock 'matching_engine_inst.clk': 60.99 MHz (PASS at 27.00 MHz)
+
+Info: Slack histogram:
+Info:  legend: * represents 4 endpoint(s)
+Info:          + represents [1,4) endpoint(s)
+Info: [ 20640,  21435) |+
+Info: [ 21435,  22230) |+
+Info: [ 22230,  23025) |**+
+Info: [ 23025,  23820) |************+
+Info: [ 23820,  24615) |************+
+Info: [ 24615,  25410) |*******+
+Info: [ 25410,  26205) |**+
+Info: [ 26205,  27000) |****+
+Info: [ 27000,  27795) |*********+
+Info: [ 27795,  28590) |*********+
+Info: [ 28590,  29385) |*************+
+Info: [ 29385,  30180) |*********************************+
+Info: [ 30180,  30975) |***********************************************+
+Info: [ 30975,  31770) |************************************************************ 
+Info: [ 31770,  32565) |***************************************+
+Info: [ 32565,  33360) |****************************+
+Info: [ 33360,  34155) |******************************+
+Info: [ 34155,  34950) |*********************+
+Info: [ 34950,  35745) |****************+
+Info: [ 35745,  36540) |*************************************+
+Info: Checksum: 0x4e0a720e
+Info: Routing globals...
+Info:     'matching_engine_inst.clk' net was routed using global resources only.
+Info:     'matching_engine_inst.price[4]' is routed using segments.
+Info:     'matching_engine_inst.price[2]' is routed using segments.
+Info:     'matching_engine_inst.price[5]' is routed using segments.
+Info:     'matching_engine_inst.price[13]' is routed using segments.
+Info:     'matching_engine_inst.price[1]' is routed using segments.
+Info:     'matching_engine_inst.price[9]' is routed using segments.
+Info:     'matching_engine_inst.price[11]' is routed using segments.
+Info:     'matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT3_I1_1_F' is routed using segments.
+Info:     'matching_engine_inst.price[15]' is routed using segments.
+Info:     'matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT3_I0_F' is routed using segments.
+Info:     'matching_engine_inst.bid_book.price_DFFE_Q_80_D_MUX2_LUT5_O_S0[4]' is routed using segments.
+Info:     'matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT3_I1_2_F[4]' is routed using segments.
+Info:     'matching_engine_inst.bid_book.valid_DFFRE_Q_CE_MUX2_LUT5_S0_O[2]' is routed using segments.
+Info:     'matching_engine_inst.price[7]' is routed using segments.
+Info:     'matching_engine_inst.price[0]' is routed using segments.
+Info:     'matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT3_I2_F[2]' is routed using segments.
+Info:     'matching_engine_inst.ask_book.quantity_DFFE_Q_112_D_MUX2_LUT5_O_S0[2]' is routed using segments.
+Info:     'matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT4_I2_1_F[4]' is routed using segments.
+Info:     'matching_engine_inst.price[8]' is routed using segments.
+Info:     'matching_engine_inst.remainingQuantity[9]' is routed using segments.
+Info:     'matching_engine_inst.remainingQuantity[7]' is routed using segments.
+Info:     'matching_engine_inst.remainingQuantity[4]' is routed using segments.
+Info:     'matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT4_I3_1_F_MUX2_LUT5_I1_O[4]' is routed using segments.
+Info:     'matching_engine_inst.price[3]' is routed using segments.
+Info:     'matching_engine_inst.price[10]' is routed using segments.
+Info:     'matching_engine_inst.messageReadyPrev_LUT4_I2_I3[3]' is routed using segments.
+Info:     'matching_engine_inst.ask_book.valid_DFFRE_Q_CE_LUT3_I1_F' is routed using segments.
+Info:     'matching_engine_inst.ask_book.valid_DFFRE_Q_CE_LUT3_I1_1_F' is routed using segments.
+Info:     'matching_engine_inst.ask_book.valid_DFFRE_Q_CE_LUT4_I2_F' is routed using segments.
+Info:     'matching_engine_inst.ask_book.valid_DFFRE_Q_CE_LUT4_I3_F_MUX2_LUT5_I1_O' is routed using segments.
+Info:     'matching_engine_inst.ask_book.insertFullError_DFFRE_Q_RESET_LUT2_F_I1_LUT3_I2_F' is routed using segments.
+
+Info: Routing..
+Info: Setting up routing queue.
+Info: Routing 18031 arcs.
+Info:            |   (re-)routed arcs  |   delta    | remaining|       time spent     |
+Info:    IterCnt |  w/ripup   wo/ripup |  w/r  wo/r |      arcs| batch(sec) total(sec)|
+Info:       1000 |       19        980 |   19   980 |     17061|       0.31       0.31|
+Info:       2000 |       44       1767 |   25   787 |     16100|       0.18       0.49|
+Info:       3000 |       51       2534 |    7   767 |     15109|       0.13       0.62|
+Info:       4000 |       60       3358 |    9   824 |     14125|       0.09       0.72|
+Info:       5000 |       62       4189 |    2   831 |     13128|       0.18       0.90|
+Info:       6000 |       65       5006 |    3   817 |     12132|       0.17       1.07|
+Info:       7000 |       66       5808 |    1   802 |     11134|       0.17       1.23|
+Info:       8000 |       74       6617 |    8   809 |     10144|       0.18       1.41|
+Info:       9000 |       92       7430 |   18   813 |      9170|       0.19       1.61|
+Info:      10000 |      105       8207 |   13   777 |      8185|       0.20       1.80|
+Info:      11000 |      135       9002 |   30   795 |      7230|       0.24       2.04|
+Info:      12000 |      177       9797 |   42   795 |      6317|       0.26       2.30|
+Info:      13000 |      210      10591 |   33   794 |      5359|       0.22       2.52|
+Info:      14000 |      235      11395 |   25   804 |      4391|       0.26       2.78|
+Info:      15000 |      305      12165 |   70   770 |      3503|       0.30       3.08|
+Info:      16000 |      371      12950 |   66   785 |      2615|       0.29       3.37|
+Info:      17000 |      458      13719 |   87   769 |      1865|       0.33       3.71|
+Info:      18000 |      543      14478 |   85   759 |      1005|       0.36       4.07|
+Info:      19000 |      642      15239 |   99   761 |       186|       0.36       4.43|
+Info:      19222 |      661      15409 |   19   170 |         0|       0.10       4.53|
+Info: Routing complete.
+Info: Router1 time 4.53s
+Info: Checksum: 0x85b5139b
+
+Info: Critical path report for clock 'matching_engine_inst.clk' (posedge -> posedge):
+Info:       type curr  total name
+Info:   clk-to-q  0.46  0.46 Source matching_engine_inst.msg_rx_inst.price_DFFE_Q_4.Q
+Info:    routing  4.98  5.44 Net matching_engine_inst.price[11] (8,25) -> (19,15)
+Info:                          Sink matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_S0_MUX2_LUT8_O_I1_MUX2_LUT7_O_I1_MUX2_LUT6_O.S0
+Info:                          Defined in:
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:130.20-130.21
+Info:      logic  0.18  5.61 Source matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_S0_MUX2_LUT8_O_I1_MUX2_LUT7_O_I1_MUX2_LUT6_O.O
+Info:    routing  0.00  5.61 Net matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_S0_MUX2_LUT8_O_I1_MUX2_LUT7_O_I1 (19,15) -> (19,15)
+Info:                          Sink matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_S0_MUX2_LUT8_O_I1_MUX2_LUT7_O.I1
+Info:                          Defined in:
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:171.43-171.68
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:163.13-163.15
+Info:      logic  0.50  6.11 Source matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_S0_MUX2_LUT8_O_I1_MUX2_LUT7_O.O
+Info:    routing  0.00  6.11 Net matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_S0_MUX2_LUT8_O_I1 (19,15) -> (19,15)
+Info:                          Sink matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_S0_MUX2_LUT8_O.I1
+Info:                          Defined in:
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:169.13-169.15
+Info:      logic  0.50  6.61 Source matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_S0_MUX2_LUT8_O.O
+Info:    routing  1.37  7.99 Net matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_S0[2] (19,15) -> (16,16)
+Info:                          Sink matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_I1_MUX2_LUT5_O_I1_LUT4_F.I2
+Info:                          Defined in:
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:130.20-130.21
+Info:      logic  0.82  8.81 Source matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_I1_MUX2_LUT5_O_I1_LUT4_F.F
+Info:    routing  0.00  8.81 Net matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_I1_MUX2_LUT5_O_I1 (16,16) -> (16,16)
+Info:                          Sink matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_I1_MUX2_LUT5_O.I1
+Info:                          Defined in:
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:159.41-159.66
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:151.13-151.15
+Info:      logic  0.50  9.31 Source matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_I1_MUX2_LUT5_O.O
+Info:    routing  0.00  9.31 Net matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2_I1 (16,16) -> (16,16)
+Info:                          Sink matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2.I1
+Info:                          Defined in:
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:157.13-157.15
+Info:      logic  0.50  9.81 Source matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT6_O_2.O
+Info:    routing  1.22  11.03 Net matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT[6] (16,16) -> (15,14)
+Info:                          Sink matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT7_S0_1.S0
+Info:                          Defined in:
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:130.20-130.21
+Info:      logic  0.18  11.20 Source matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT7_S0_1.O
+Info:    routing  0.00  11.20 Net matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT7_S0_1_O (15,14) -> (15,14)
+Info:                          Sink matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT8_S0.I1
+Info:                          Defined in:
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:169.13-169.15
+Info:      logic  0.50  11.70 Source matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT8_S0.O
+Info:    routing  2.39  14.10 Net matching_engine_inst.remainingQuantity_DFFE_Q_D_LUT4_F_I3_ALU_SUM_COUT_LUT4_F_1_I3_MUX2_LUT5_O_I1_LUT4_F_I0_MUX2_LUT6_S0_O_LUT4_F_I3_ALU_SUM_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_ALU_CIN_COUT_MUX2_LUT8_S0_O[5] (15,14) -> (9,10)
+Info:                          Sink matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT4_I3_F_MUX2_LUT5_I1_O_MUX2_LUT6_I1_O_LUT4_F.I3
+Info:                          Defined in:
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:130.20-130.21
+Info:      logic  0.62  14.72 Source matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT4_I3_F_MUX2_LUT5_I1_O_MUX2_LUT6_I1_O_LUT4_F.F
+Info:    routing  1.12  15.85 Net matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT4_I3_F_MUX2_LUT5_I1_O_MUX2_LUT6_I1_O[5] (9,10) -> (9,6)
+Info:                          Sink matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT4_I2_2.I3
+Info:                          Defined in:
+Info:                               /Users/paoloverwey/oss-cad-suite/libexec/../share/yosys/gowin/cells_map.v:130.20-130.21
+Info:      logic  0.62  16.47 Source matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT4_I2_2.F
+Info:    routing  2.89  19.36 Net matching_engine_inst.bid_book.valid_DFFRE_Q_CE_LUT4_I2_2_F (9,6) -> (1,26)
+Info:                          Sink matching_engine_inst.bid_book.quantity_DFFE_Q_103.CE
+Info:      setup  0.04  19.40 Source matching_engine_inst.bid_book.quantity_DFFE_Q_103.CE
+Info: 5.43 ns logic, 13.97 ns routing
+
+Info: Max frequency for clock 'matching_engine_inst.clk': 51.54 MHz (PASS at 27.00 MHz)
+
+Info: Slack histogram:
+Info:  legend: * represents 4 endpoint(s)
+Info:          + represents [1,4) endpoint(s)
+Info: [ 17636,  18537) |**+
+Info: [ 18537,  19438) |****+
+Info: [ 19438,  20339) | 
+Info: [ 20339,  21240) | 
+Info: [ 21240,  22141) |+
+Info: [ 22141,  23042) |+
+Info: [ 23042,  23943) |+
+Info: [ 23943,  24844) |******+
+Info: [ 24844,  25745) |******+
+Info: [ 25745,  26646) |*************+
+Info: [ 26646,  27547) |**************+
+Info: [ 27547,  28448) |*********+
+Info: [ 28448,  29349) |*****+
+Info: [ 29349,  30250) |********************************+
+Info: [ 30250,  31151) |************************************************************ 
+Info: [ 31151,  32052) |************************************************+
+Info: [ 32052,  32953) |********************+
+Info: [ 32953,  33854) |**********+
+Info: [ 33854,  34755) |*+
+Info: [ 34755,  35656) |+
+
+Info: Program finished normally.
