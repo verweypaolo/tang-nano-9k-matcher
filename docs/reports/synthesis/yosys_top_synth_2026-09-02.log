@@ -6,7 +6,7 @@
  \----------------------------------------------------------------------------/
  Yosys 0.66+91 (git sha1 8869ce61d, Release, Clang /usr/local/osxcross/target/bin/aarch64-apple-darwin23.5-clang++ 18.1.8)
 
--- Running command `read_verilog rtl/uart_rx.v rtl/uart_tx.v rtl/message_rx.v rtl/message_tx.v rtl/report_fifo.v rtl/order_book_side.v rtl/matching_engine.v rtl/top.v; synth_gowin -top top -json build/report.json; stat' --
+-- Running command `read_verilog rtl/uart_rx.v rtl/uart_tx.v rtl/message_rx.v rtl/message_tx.v rtl/report_fifo.v rtl/order_book_side.v rtl/matching_engine.v rtl/top.v; synth_gowin -top top -json build/top.json; stat' --
 
 1. Executing Verilog-2005 frontend: rtl/uart_rx.v
 Parsing Verilog input from `rtl/uart_rx.v' to AST representation.
@@ -5385,6 +5385,6 @@ Found and reported 0 problems.
         7   OBUF
         1   VCC
 
-End of script. Logfile hash: eaf3e20ede, time: 4.46s, user: 3.30s, system: 0.14s, MEM: 232.16 MB peak
+End of script. Logfile hash: d178b66dc2, time: 4.52s, user: 3.30s, system: 0.15s, MEM: 227.09 MB peak
 Yosys 0.66+91 (git sha1 8869ce61d, Release, Clang /usr/local/osxcross/target/bin/aarch64-apple-darwin23.5-clang++ 18.1.8)
 Time spent: 26% 1x abc9_exe (1 sec), 17% 1x autoname (0 sec), ...
