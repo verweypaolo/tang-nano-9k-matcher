@@ -1,0 +1,191 @@
+VCD info: dumpfile order_book_side_ask_tb.vcd opened for output.
+PASS: simultaneousOpError correctly asserted, book state unchanged
+PASS: removeEmptyError correctly asserted, book state unchanged
+PASS: insert into empty book landed correctly in slot 0
+---- Book contents ----
+  slot 0: price=0064 qty=000a orderID=0001 seqNum=0000
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: second insert correctly added to slot 0
+---- Book contents ----
+  slot 0: price=0032 qty=0005 orderID=0002 seqNum=0001
+  slot 1: price=0064 qty=000a orderID=0001 seqNum=0000
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: middle insert correctly shifted existing entry and landed at slot 1
+---- Book contents ----
+  slot 0: price=0032 qty=0005 orderID=0002 seqNum=0001
+  slot 1: price=004b qty=0007 orderID=0003 seqNum=0002
+  slot 2: price=0064 qty=000a orderID=0001 seqNum=0000
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: duplicate price correctly resolved by arrival order (orderID 3 kept priority over orderID 4)
+---- Book contents ----
+  slot 0: price=0032 qty=0005 orderID=0002 seqNum=0001
+  slot 1: price=004b qty=0007 orderID=0003 seqNum=0002
+  slot 2: price=004b qty=0003 orderID=0004 seqNum=0003
+  slot 3: price=0064 qty=000a orderID=0001 seqNum=0000
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: book correctly filled to N=8 entries
+---- Book contents ----
+  slot 0: price=000a qty=0001 orderID=0008 seqNum=0007
+  slot 1: price=0014 qty=0006 orderID=0007 seqNum=0006
+  slot 2: price=001e qty=0002 orderID=0006 seqNum=0005
+  slot 3: price=0028 qty=0004 orderID=0005 seqNum=0004
+  slot 4: price=0032 qty=0005 orderID=0002 seqNum=0001
+  slot 5: price=004b qty=0007 orderID=0003 seqNum=0002
+  slot 6: price=004b qty=0003 orderID=0004 seqNum=0003
+  slot 7: price=0064 qty=000a orderID=0001 seqNum=0000
+------------------------
+PASS: insertFullError correctly asserted, book state unchanged
+---- Book contents ----
+  slot 0: price=000a qty=0001 orderID=0008 seqNum=0007
+  slot 1: price=0014 qty=0006 orderID=0007 seqNum=0006
+  slot 2: price=001e qty=0002 orderID=0006 seqNum=0005
+  slot 3: price=0028 qty=0004 orderID=0005 seqNum=0004
+  slot 4: price=0032 qty=0005 orderID=0002 seqNum=0001
+  slot 5: price=004b qty=0007 orderID=0003 seqNum=0002
+  slot 6: price=004b qty=0003 orderID=0004 seqNum=0003
+  slot 7: price=0064 qty=000a orderID=0001 seqNum=0000
+------------------------
+PASS: removal correctly removed slot 0 and shifted remaining entries up
+---- Book contents ----
+  slot 0: price=0014 qty=0006 orderID=0007 seqNum=0006
+  slot 1: price=001e qty=0002 orderID=0006 seqNum=0005
+  slot 2: price=0028 qty=0004 orderID=0005 seqNum=0004
+  slot 3: price=0032 qty=0005 orderID=0002 seqNum=0001
+  slot 4: price=004b qty=0007 orderID=0003 seqNum=0002
+  slot 5: price=004b qty=0003 orderID=0004 seqNum=0003
+  slot 6: price=0064 qty=000a orderID=0001 seqNum=0000
+  slot 7: (empty)
+------------------------
+PASS: insert correctly filled last empty slot
+---- Book contents ----
+  slot 0: price=0014 qty=0006 orderID=0007 seqNum=0006
+  slot 1: price=001e qty=0002 orderID=0006 seqNum=0005
+  slot 2: price=0028 qty=0004 orderID=0005 seqNum=0004
+  slot 3: price=0032 qty=0005 orderID=0002 seqNum=0001
+  slot 4: price=0046 qty=0002 orderID=0009 seqNum=0008
+  slot 5: price=004b qty=0007 orderID=0003 seqNum=0002
+  slot 6: price=004b qty=0003 orderID=0004 seqNum=0003
+  slot 7: price=0064 qty=000a orderID=0001 seqNum=0000
+------------------------
+PASS: interleaved remove-then-insert correctly refilled the book
+---- Book contents ----
+  slot 0: price=001e qty=0002 orderID=0006 seqNum=0005
+  slot 1: price=0028 qty=0004 orderID=0005 seqNum=0004
+  slot 2: price=0032 qty=0005 orderID=0002 seqNum=0001
+  slot 3: price=003c qty=0003 orderID=000a seqNum=0009
+  slot 4: price=0046 qty=0002 orderID=0009 seqNum=0008
+  slot 5: price=004b qty=0007 orderID=0003 seqNum=0002
+  slot 6: price=004b qty=0003 orderID=0004 seqNum=0003
+  slot 7: price=0064 qty=000a orderID=0001 seqNum=0000
+------------------------
+PASS: interleaved sequence completed correctly
+---- Book contents ----
+  slot 0: price=0032 qty=0005 orderID=0002 seqNum=0001
+  slot 1: price=003c qty=0003 orderID=000a seqNum=0009
+  slot 2: price=0046 qty=0002 orderID=0009 seqNum=0008
+  slot 3: price=004b qty=0007 orderID=0003 seqNum=0002
+  slot 4: price=004b qty=0003 orderID=0004 seqNum=0003
+  slot 5: price=0064 qty=000a orderID=0001 seqNum=0000
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: book correctly drained to fully empty
+---- Book contents ----
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: removeEmptyError correctly asserted after full drain — empty/full transition logic confirmed
+---- Book contents ----
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: reduceEmptyError correctly asserted, book state unchanged
+---- Book contents ----
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: partial reduce correctly decremented quantity, other fields untouched
+---- Book contents ----
+  slot 0: price=0064 qty=000f orderID=000b seqNum=000a
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: overReduceError correctly asserted, quantity unchanged
+---- Book contents ----
+  slot 0: price=0064 qty=000f orderID=000b seqNum=000a
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: exact-match reduce correctly rejected via overReduceError (boundary case)
+---- Book contents ----
+  slot 0: price=0064 qty=000f orderID=000b seqNum=000a
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+PASS: reduced quantity persisted correctly through an unrelated insert, and shifted correctly on the ask side
+---- Book contents ----
+  slot 0: price=0032 qty=0008 orderID=000c seqNum=000b
+  slot 1: price=0064 qty=000a orderID=000b seqNum=000a
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+------------------------
+sim/order_book_side_ask_tb.v:517: $finish called at 926000 (1ps)

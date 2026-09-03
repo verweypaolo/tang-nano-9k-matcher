@@ -1,0 +1,84 @@
+VCD info: dumpfile report_fifo_tb.vcd opened for output.
+PASS: after reset: empty asserted
+PASS: after reset: full deasserted
+PASS: r reset: full_latched deasserted
+PASS: after 1 write: empty deasserted
+PASS: after 1 write: full deasserted
+PASS: ngle write/read: rd_data matches
+PASS: after drain: empty reasserted
+PASS: fter DEPTH writes: full asserted
+PASS:  writes: full_latched sticky-set
+PASS: sure drain: FIFO order preserved
+PASS: sure drain: FIFO order preserved
+PASS: sure drain: FIFO order preserved
+PASS: sure drain: FIFO order preserved
+PASS: sure drain: FIFO order preserved
+PASS: sure drain: FIFO order preserved
+PASS: sure drain: FIFO order preserved
+PASS: sure drain: FIFO order preserved
+PASS: ter full drain: empty reasserted
+PASS: d still set after drain (sticky)
+PASS: d cleared after clear_full pulse
+PASS: ad returns old data (FIFO order)
+PASS:  not empty (net count unchanged)
+PASS: simultaneous wr+rd: not full
+PASS: neous wr+rd: second entry intact
+PASS: s wr+rd: empty after final drain
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: ta integrity across pointer wrap
+PASS: after wraparound loop: empty
+PASS: after wraparound loop: not full
+PASS: ll: not empty before async reset
+PASS: eset: empty asserted immediately
+PASS: sync reset: full_latched cleared
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS: hase wrap - FIFO order preserved
+PASS:  backlog after out-of-phase wrap
+PASS:  backlog after out-of-phase wrap
+PASS:  backlog after out-of-phase wrap
+PASS:  backlog after out-of-phase wrap
+PASS:  backlog after out-of-phase wrap
+PASS: test9: empty after full drain
+PASS: test9: not full after full drain
+ALL TESTS PASSED
+sim/report_fifo_tb.v:270: $finish called at 3150000 (1ps)

@@ -165,7 +165,7 @@ module test_message_rx;
 
     initial begin
         $dumpfile("message_rx_tb.vcd"); // output waveform file
-        $dumpvars(0, test);    // 0 = dump all levels of hierarchy, starting from this module
+        $dumpvars(0, test_message_rx);    // 0 = dump all levels of hierarchy, starting from this module
     end
 
 

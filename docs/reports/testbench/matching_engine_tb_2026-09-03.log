@@ -1,0 +1,418 @@
+VCD info: dumpfile matching_engine_tb.vcd opened for output.
+PASS: single buy order correctly rested into empty bid book
+
+==== Bid Book ====
+  slot 0: price=0064 qty=000a orderID=0001 seqNum=0000
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+DEBUG: capture fired at time 17955000, writing to slot 0, orderID=0001
+PASS: Test 1 report correctly transmitted and decoded
+PASS: exact-match order correctly fully filled, ask book emptied, nothing rested
+
+==== Bid Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+DEBUG: capture fired at time 35895000, writing to slot 1, orderID=001e
+PASS: Test 2 report correctly transmitted and decoded
+
+==== Bid Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: price=0064 qty=0005 orderID=0028 seqNum=0002
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+DEBUG: capture fired at time 53845000, writing to slot 2, orderID=0028
+PASS: Test 3 first report correctly reflects simple rest, quantity unchanged at original value
+PASS: resting order fully consumed, leftover quantity correctly rested
+
+==== Bid Book ====
+  slot 0: price=0064 qty=0007 orderID=0029 seqNum=0003
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+DEBUG: capture fired at time 71825000, writing to slot 3, orderID=0029
+PASS: Test 3 second report correctly reflects REMAINING quantity (7), not original incoming quantity (12)
+
+==== Bid Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: price=0064 qty=000d orderID=0032 seqNum=0004
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+DEBUG: capture fired at time 89805000, writing to slot 4, orderID=0032
+PASS: Test 4 first report correctly reflects remaining rest at remaining quantity 13
+PASS: resting order correctly reduced (not removed), incoming order fully filled
+
+==== Bid Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: price=0064 qty=0005 orderID=0032 seqNum=0004
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+DEBUG: capture fired at time 107745000, writing to slot 5, orderID=0033
+PASS: Test 4 second report correctly reflects FILLED at original incoming quantity (8), independent of the reduce that happened on the book
+DEBUG: capture fired at time 125695000, writing to slot 6, orderID=003c
+PASS: Test 5 first fill order report correct (spot check)
+DEBUG: capture fired at time 143645000, writing to slot 7, orderID=003d
+DEBUG: capture fired at time 161595000, writing to slot 0, orderID=003e
+DEBUG: capture fired at time 179545000, writing to slot 1, orderID=003f
+DEBUG: capture fired at time 197495000, writing to slot 2, orderID=0040
+DEBUG: capture fired at time 215445000, writing to slot 3, orderID=0041
+DEBUG: capture fired at time 233395000, writing to slot 4, orderID=0042
+PASS: ask book correctly filled to N=8 in preparation for reject test
+
+==== Bid Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: price=000f qty=000a orderID=0042 seqNum=000c
+  slot 1: price=0019 qty=000a orderID=0041 seqNum=000b
+  slot 2: price=0028 qty=000a orderID=0040 seqNum=000a
+  slot 3: price=0032 qty=000a orderID=003c seqNum=0006
+  slot 4: price=0046 qty=000a orderID=003d seqNum=0007
+  slot 5: price=0050 qty=000a orderID=003e seqNum=0008
+  slot 6: price=005a qty=000a orderID=003f seqNum=0009
+  slot 7: price=0064 qty=0005 orderID=0032 seqNum=0004
+===================
+
+PASS: orderRejected correctly asserted when book was full, book contents unchanged
+
+==== Bid Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: price=000f qty=000a orderID=0042 seqNum=000c
+  slot 1: price=0019 qty=000a orderID=0041 seqNum=000b
+  slot 2: price=0028 qty=000a orderID=0040 seqNum=000a
+  slot 3: price=0032 qty=000a orderID=003c seqNum=0006
+  slot 4: price=0046 qty=000a orderID=003d seqNum=0007
+  slot 5: price=0050 qty=000a orderID=003e seqNum=0008
+  slot 6: price=005a qty=000a orderID=003f seqNum=0009
+  slot 7: price=0064 qty=0005 orderID=0032 seqNum=0004
+===================
+
+DEBUG: capture fired at time 251345000, writing to slot 5, orderID=0043
+PASS: Test 5 rejected-order report correctly reflects REJECTED at original incoming quantity
+PASS: wrongMsgType correctly asserted, no book interaction occurred
+
+==== Bid Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: price=000f qty=000a orderID=0042 seqNum=000c
+  slot 1: price=0019 qty=000a orderID=0041 seqNum=000b
+  slot 2: price=0028 qty=000a orderID=0040 seqNum=000a
+  slot 3: price=0032 qty=000a orderID=003c seqNum=0006
+  slot 4: price=0046 qty=000a orderID=003d seqNum=0007
+  slot 5: price=0050 qty=000a orderID=003e seqNum=0008
+  slot 6: price=005a qty=000a orderID=003f seqNum=0009
+  slot 7: price=0064 qty=0005 orderID=0032 seqNum=0004
+===================
+
+DEBUG: capture fired at time 269265000, writing to slot 6, orderID=0044
+PASS: Test 6 correctly reports RPT_INVALID for a malformed msgType
+PASS: wrongMsgSide correctly asserted, no book interaction occurred
+
+==== Bid Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: price=000f qty=000a orderID=0042 seqNum=000c
+  slot 1: price=0019 qty=000a orderID=0041 seqNum=000b
+  slot 2: price=0028 qty=000a orderID=0040 seqNum=000a
+  slot 3: price=0032 qty=000a orderID=003c seqNum=0006
+  slot 4: price=0046 qty=000a orderID=003d seqNum=0007
+  slot 5: price=0050 qty=000a orderID=003e seqNum=0008
+  slot 6: price=005a qty=000a orderID=003f seqNum=0009
+  slot 7: price=0064 qty=0005 orderID=0032 seqNum=0004
+===================
+
+DEBUG: capture fired at time 287185000, writing to slot 7, orderID=0045
+PASS: Test 7 correctly reports RPT_INVALID for a malformed side value
+PASS: multi-iteration match walk correctly drained all 8 resting ask orders
+
+==== Bid Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+DEBUG: capture fired at time 305265000, writing to slot 0, orderID=0046
+PASS: Test 8 report correctly reflects FILLED at original quantity 75, unaffected by the walk
+PASS: globalSeqNum incremented exactly once, resting order stored the correct pre-increment seqNum
+
+==== Bid Book ====
+  slot 0: price=0064 qty=000a orderID=0049 seqNum=000e
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+DEBUG: capture fired at time 323215000, writing to slot 1, orderID=0049
+DEBUG: capture fired at time 341135000, writing to slot 2, orderID=004a
+PASS: globalSeqNum correctly unchanged after wrongMsgType and wrongMsgSide drops
+DEBUG: capture fired at time 359055000, writing to slot 3, orderID=004b
+PASS: globalSeqNum correctly incremented by exactly one for the valid order, unaffected by prior drops
+
+==== Bid Book ====
+  slot 0: price=0064 qty=0005 orderID=0049 seqNum=000e
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+DEBUG: capture fired at time 376995000, writing to slot 4, orderID=004c
+PASS: matchLoopOverrunError correctly asserted under a forced condition, book left completely untouched
+
+==== Bid Book ====
+  slot 0: price=0064 qty=0005 orderID=0049 seqNum=000e
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: (empty)
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+PASS: correctly no report sent or queued for an aborted, defensively-guarded order
+DEBUG: capture fired at time 423765000, writing to slot 0, orderID=0050
+DEBUG: capture fired at time 432905000, writing to slot 1, orderID=0051
+DEBUG: capture fired at time 442045000, writing to slot 2, orderID=0052
+DEBUG: capture fired at time 451185000, writing to slot 3, orderID=0053
+PASS: all four back-to-back-to-back orders correctly rested (book state)
+
+==== Bid Book ====
+  slot 0: price=0064 qty=0005 orderID=0049 seqNum=000e
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: price=006e qty=000f orderID=0050 seqNum=0010
+  slot 1: price=0078 qty=0014 orderID=0051 seqNum=0011
+  slot 2: price=0082 qty=0005 orderID=0052 seqNum=0012
+  slot 3: price=008c qty=0006 orderID=0053 seqNum=0013
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+===================
+
+DEBUG: read_captured_report - got data, outValid set to 1, orderID=0050
+PASS: Test 12 first captured report correct (order 0x50)
+DEBUG: read_captured_report - got data, outValid set to 1, orderID=0051
+PASS: Test 12 second captured report correct (order 0x51)
+DEBUG: read_captured_report - got data, outValid set to 1, orderID=0052
+PASS: Test 12 third captured report correct (order 0x52)
+DEBUG: read_captured_report - got data, outValid set to 1, orderID=0053
+PASS: Test 12 fourth captured report correct (order 0x53) — FIFO depth was sufficient for a 4-deep burst, all reports correctly queued and drained in order
+PASS: report_fifo was genuinely exercised (held queued, undrained reports) during the four-way overlap test
+DEBUG: capture fired at time 489005000, writing to slot 0, orderID=0060
+DEBUG: capture fired at time 498145000, writing to slot 1, orderID=0061
+DEBUG: capture fired at time 507285000, writing to slot 2, orderID=0062
+DEBUG: capture fired at time 516425000, writing to slot 3, orderID=0063
+DEBUG: capture fired at time 525565000, writing to slot 4, orderID=0064
+DEBUG: capture fired at time 534705000, writing to slot 5, orderID=0065
+PASS: all six additional rapid-fire orders correctly rested, filling the ask book to N=8
+
+==== Bid Book ====
+  slot 0: price=0064 qty=0005 orderID=0049 seqNum=000e
+  slot 1: (empty)
+  slot 2: (empty)
+  slot 3: (empty)
+  slot 4: (empty)
+  slot 5: (empty)
+  slot 6: (empty)
+  slot 7: (empty)
+==== Ask Book ====
+  slot 0: price=006e qty=000f orderID=0050 seqNum=0010
+  slot 1: price=0078 qty=0014 orderID=0051 seqNum=0011
+  slot 2: price=0082 qty=0005 orderID=0052 seqNum=0012
+  slot 3: price=008c qty=0006 orderID=0053 seqNum=0013
+  slot 4: price=00a0 qty=0003 orderID=0060 seqNum=0014
+  slot 5: price=00aa qty=0003 orderID=0061 seqNum=0015
+  slot 6: price=00b4 qty=0003 orderID=0062 seqNum=0016
+  slot 7: price=00be qty=0003 orderID=0063 seqNum=0017
+===================
+
+DEBUG: read_captured_report - got data, outValid set to 1, orderID=0060
+PASS: Test 13 captured report #0 correct (order 0060, outcome  RESTING)
+DEBUG: read_captured_report - got data, outValid set to 1, orderID=0061
+PASS: Test 13 captured report #1 correct (order 0061, outcome  RESTING)
+DEBUG: read_captured_report - got data, outValid set to 1, orderID=0062
+PASS: Test 13 captured report #2 correct (order 0062, outcome  RESTING)
+DEBUG: read_captured_report - got data, outValid set to 1, orderID=0063
+PASS: Test 13 captured report #3 correct (order 0063, outcome  RESTING)
+DEBUG: read_captured_report - got data, outValid set to 1, orderID=0064
+PASS: Test 13 captured report #4 correct (order 0064, outcome REJECTED)
+DEBUG: read_captured_report - got data, outValid set to 1, orderID=0065
+PASS: Test 13 captured report #5 correct (order 0065, outcome REJECTED)
+PASS: report_fifo correctly absorbed a burst well beyond the old 1-deep buffer's capacity, all six reports preserved in order
+sim/matching_engine_tb.v:898: $finish called at 573885000 (1ps)

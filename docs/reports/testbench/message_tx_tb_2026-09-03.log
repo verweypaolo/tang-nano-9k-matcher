@@ -1,0 +1,7 @@
+VCD info: dumpfile message_tx_tb.vcd opened for output.
+PASS: report correctly round-tripped through message_tx and decoded by reference receiver
+PASS: stray send-while-busy correctly flagged, original transmission completed undisturbed
+PASS: first back-to-back report correctly sent and decoded
+PASS: second back-to-back report correctly sent and decoded, no gap needed
+PASS: asymmetric byte values correctly transmitted and decoded — no high/low byte-order bug present
+sim/message_tx_tb.v:279: $finish called at 45605000 (1ps)
