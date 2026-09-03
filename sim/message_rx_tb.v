@@ -149,6 +149,17 @@ module test_message_rx;
         integer i;
         begin
             send_byte(SENTINEL);
+            for (i = 0; i < BAUD_DIVISOR * 11 * 20 * 10; i = i + 1) begin
+                @(posedge clk);
+            end
+        end
+    endtask
+
+    task send_order_mid_timeout;
+        integer i;
+        begin
+            send_byte(SENTINEL);
+            send_byte(8'h01); // arbitrary valid msgType, advances DUT into ORDER_ID
             for (i = 0; i < BAUD_DIVISOR * 11 * 20; i = i + 1) begin
                 @(posedge clk);
             end
@@ -222,6 +233,8 @@ module test_message_rx;
         send_order_timeout;
         // no wait, happens internally in test
 
+
+
         if (timeOutError !== 1) begin
             $display("FAIL: timeOutError not asserted after prolonged silence");
         end else if (messageReady === 1) begin
@@ -234,6 +247,21 @@ module test_message_rx;
             $display("PASS: timeOutError correctly asserted, no other flags incorrectly set");
         end
 
+        @(posedge clk);
+        send_order_mid_timeout;
+        if (timeOutError !== 1) begin
+            $display("FAIL: timeOutError not asserted after prolonged silence mid-message");
+        end else if (messageReady === 1) begin
+            $display("FAIL: messageReady incorrectly asserted after mid-message timeout");
+        end else if (sentinelError === 1) begin
+            $display("FAIL: sentinelError incorrectly asserted after mid-message timeout");
+        end else if (checksumError === 1) begin
+            $display("FAIL: checksumError incorrectly asserted after mid-message timeout");
+        end else begin
+            $display("PASS: mid-message timeOutError correctly asserted, no other flags incorrectly set");
+        end
+        @(posedge clk);
+        
         //  Resync after garbage test
         send_order_resync_after_garbage;
         @(posedge clk);

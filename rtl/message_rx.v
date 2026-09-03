@@ -22,8 +22,9 @@ module message_rx
 );
 
 // must be confortable longer than minimum delay (BAUD_DIVISOR * 11)
-// added another multiplier for USB selective suspend/ resume latency
-localparam TIMEOUT_CYCLES = BAUD_DIVISOR * 11 * 20 * 10; // large number of cycles to account for transmission delay (serial jitter)
+localparam TIMEOUT_CYCLES = BAUD_DIVISOR * 11 * 20;
+localparam TIMEOUT_CYCLES_FIRST = TIMEOUT_CYCLES * 10;
+
 
 // instantiate these to connect the uart_rx outputs through
 wire byteReady;
@@ -48,7 +49,7 @@ uart_rx #(
 reg [3:0] msgState; // track state
 reg [7:0] checksumAcc; // accumulate XOR of every received byte, check checksum at the end
 reg byteCounter; // track which byte in states that have two bytes
-reg [$clog2(TIMEOUT_CYCLES):0] byteWaitCounter;
+reg [$clog2(TIMEOUT_CYCLES_FIRST):0] byteWaitCounter;
 
 // for byteReady edge
 reg byteReadyPrev;
@@ -113,7 +114,7 @@ always @(posedge clk) begin
                 byteCounter <= 0;
                 byteWaitCounter <= 0;
                 msgState <= MSG_STATE_ORDER_ID;
-            end else if (byteWaitCounter == TIMEOUT_CYCLES - 1) begin
+            end else if (byteWaitCounter == TIMEOUT_CYCLES_FIRST - 1) begin
                 timeOutError <= 1;
                 msgState <= MSG_STATE_IDLE;
             end else begin
