@@ -2,8 +2,9 @@ VCD info: dumpfile message_rx_tb.vcd opened for output.
 PASS: valid order received and decoded correctly
 PASS: sentinelError correctly asserted, messageReady correctly not asserted
 PASS: checksumError correctly asserted, messageReady correctly not asserted
-FAIL: timeOutError not asserted after prolonged silence
-FAIL: messageReady not asserted after resync from garbage byte
+PASS: timeOutError correctly asserted, no other flags incorrectly set
+PASS: mid-message timeOutError correctly asserted, no other flags incorrectly set
+PASS: correctly resynced after garbage byte and decoded valid order
 PASS: first back-to-back message decoded correctly
 PASS: second back-to-back message decoded correctly — reset behavior confirmed
-sim/message_rx_tb.v:274: $finish called at 64325000 (1ps)
+sim/message_rx_tb.v:302: $finish called at 242105000 (1ps)
